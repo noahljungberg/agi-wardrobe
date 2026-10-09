@@ -15,8 +15,9 @@ anything you can and then ask.
   - Acceptance: `systemctl --user status wardrobe` is active;
     `scripts/verify.sh` passes on the machine.
 - [ ] 2. 👤 **Expose with Tailscale** (setup §5)
-  - Acceptance: `curl https://<machine>.<tailnet>.ts.net/` over mobile data
-    returns the hello text; `:8443/health` works only on the tailnet.
+  - Acceptance: the public URL (443 or 10000) opened on the phone **with
+    Tailscale off, on mobile data** returns the hello text; `:8443/health`
+    works only on the tailnet.
   - If the MCP endpoint answers 421 or "Invalid Host header": Funnel sends a
     different Host than expected. Add it to `allowed_hosts` in
     `build_public_app`, add a test, and record it in
@@ -57,3 +58,10 @@ anything you can and then ask.
 ## Progress log
 
 - 2026-10-09: v0.1 built and pushed; plan created.
+- 2026-10-09: Task 3 attempt (Claude web). `…ts.net:8443` is the private
+  port, unreachable for Claude by design. `…ts.net:10000/mcp` → "couldn't reach
+  this address": Funnel isn't answering from the internet yet (owner to check
+  `tailscale funnel status`, certs, policy). Fixed in code: public Host
+  checks now accept the Funnel hostname with or without port, so `:10000`
+  works once Funnel serves. Setup guide now says which URL goes where and how
+  to test from outside the tailnet.

@@ -607,9 +607,11 @@ def build_mcp(w: Wardrobe) -> MCPServer:
 def build_public_app(w: Wardrobe, mcp: MCPServer) -> Starlette:
     config = w.config
     port = config.public_port
+    # Funnel may forward the Host with or without its port (443, 8443 or 10000), so accept both.
+    hostname = config.public_host.rsplit(":", 1)[0]
     security = TransportSecuritySettings(
         enable_dns_rebinding_protection=True,
-        allowed_hosts=[config.public_host, f"127.0.0.1:{port}", f"localhost:{port}"],
+        allowed_hosts=[hostname, f"{hostname}:*", f"127.0.0.1:{port}", f"localhost:{port}"],
         allowed_origins=[config.public_url, "https://chatgpt.com", "https://claude.ai", f"http://127.0.0.1:{port}", f"http://localhost:{port}"],
     )
     return mcp.streamable_http_app(stateless_http=True, json_response=True, transport_security=security, host=config.bind)

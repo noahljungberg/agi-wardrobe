@@ -155,3 +155,24 @@ async def test_shortcuts_api(running):
 
         health = (await http.get(f"{private}/health")).json()
         assert health["items"] == 16
+
+
+async def test_funnel_host_with_or_without_port(tmp_path, demo_dir):
+    """WARDROBE_PUBLIC_URL on Funnel port 10000: the Host header may or may not carry the port."""
+    pub = free_port()
+    config = Config.from_env({
+        "WARDROBE_DIR": str(demo_dir), "WARDROBE_STATE_DIR": str(tmp_path / "state"), "WARDROBE_AUTH": "none",
+        "WARDROBE_PUBLIC_URL": "https://box.tail1234.ts.net:10000", "WARDROBE_PUBLIC_PORT": str(pub),
+    })
+    w = Wardrobe(config, weather=FakeWeather())
+    server = await start(build_public_app(w, build_mcp(w)), pub)
+    init = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}}
+    headers = {"Accept": "application/json, text/event-stream"}
+    try:
+        async with httpx.AsyncClient() as http:
+            for host, expected in [("box.tail1234.ts.net:10000", 200), ("box.tail1234.ts.net", 200), ("evil.example", 421)]:
+                r = await http.post(f"http://127.0.0.1:{pub}/mcp", json=init, headers={**headers, "Host": host})
+                assert r.status_code == expected, (host, r.status_code, r.text)
+    finally:
+        await stop(*server)

@@ -48,8 +48,9 @@ omit the header.
 
 ## Constraints
 
-- Host/Origin checks (DNS rebinding protection) allow the Funnel host,
-  `127.0.0.1:<port>` and `localhost:<port>`. Origins also allow
+- Host/Origin checks (DNS rebinding protection) allow the Funnel hostname
+  with or without a port (Funnel may use 443, 8443 or 10000, and may forward
+  `Host` either way), plus `127.0.0.1:<port>` and `localhost:<port>`. Origins also allow
   `https://chatgpt.com` and `https://claude.ai`.
 - uvicorn trusts `X-Forwarded-*` only from `127.0.0.1` (Tailscale's local proxy).
 - Public custom routes are unauthenticated by design. Never expose a file path
@@ -58,7 +59,8 @@ omit the header.
 
 ## Tests
 
-- `tests/test_http.py`: real uvicorn servers on free ports. OAuth + MCP,
+- `tests/test_http.py`: real uvicorn servers on free ports. Funnel Host header
+  with and without port (and a foreign host rejected with 421), OAuth + MCP,
   collage/item images (valid, tampered, unknown), `/location` with and without
   the token, `/inbox` upload, `/health`.
 
