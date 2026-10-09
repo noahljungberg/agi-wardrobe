@@ -35,7 +35,7 @@ async def _outfit(config):
     w = Wardrobe(config, weather=FakeWeather())
     w.state.set_location(58.41, 15.62, "Linköping", "from your phone", "Europe/Stockholm")
     async with Client(build_mcp(w)) as c:
-        html = (await c.read_resource("ui://wardrobe/outfit.html")).contents[0].text
+        html = (await c.read_resource("ui://wardrobe/outfit-v2.html")).contents[0].text
         r = await c.call_tool("show_outfit", {"item_ids": ["beige cords", "nubikk-leather-sneakers-white", "ecru knit"], "note": "Easy."})
     return html, r.model_dump(by_alias=True, exclude_none=True)
 
@@ -72,4 +72,25 @@ async def test_card_renders_via_openai_globals(config, tmp_path):
         assert "Today · Linköping" in await page.inner_text("h1")
         await page.click("#open")
         assert (await page.evaluate("window.opened")).startswith(config.public_url + "/img/r/")
+        await browser.close()
+
+
+async def test_card_renders_when_openai_globals_exist_but_data_comes_over_the_bridge(config, tmp_path):
+    """ChatGPT's frame can expose window.openai without toolOutput and still deliver data via the
+    MCP Apps bridge after ui/initialize. The card must not skip the handshake (it used to, and
+    ChatGPT showed an empty frame)."""
+    html, result = await _outfit(config)
+    async with playwright.async_playwright() as pw:
+        browser = await pw.chromium.launch(executable_path=CHROMIUM)
+        page = await browser.new_page()
+        await page.add_init_script(
+            f"window.__RESULT = {json.dumps(result)}; window.__HTML = {json.dumps(html)};"
+            "if (window !== window.top) { window.openai = { theme: 'light', toolOutput: null }; }"
+        )
+        (tmp_path / "host.html").write_text(HOST)
+        await page.goto((tmp_path / "host.html").as_uri())
+        frame = page.frame_locator("#f")
+        await frame.locator(".item img").first.wait_for(timeout=5000)
+        assert await frame.locator(".item img").count() == 3
+        assert (await page.evaluate("window.log"))[0] == "ui/initialize"
         await browser.close()

@@ -113,3 +113,5 @@ component.
 - Putting photos in `structuredContent`: the model reads it. Photo data URIs go
   in the result's `_meta` (`wardrobe/thumbs`).
 - Returning one image per candidate: use one contact sheet.
+- Treating `window.openai` as "not an MCP Apps host" in the card: ChatGPT has
+  both, and only sends data after the handshake.

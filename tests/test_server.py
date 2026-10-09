@@ -34,9 +34,9 @@ async def test_tool_list_and_annotations(connect):
                 "wardrobe_analysis", "remember", "forget", "set_location"} <= set(tools)
         assert tools["dress_me"].annotations.read_only_hint is True
         assert tools["log_wear"].annotations.read_only_hint is False
-        assert tools["show_outfit"].meta["ui"]["resourceUri"] == "ui://wardrobe/outfit.html"
+        assert tools["show_outfit"].meta["ui"]["resourceUri"] == "ui://wardrobe/outfit-v2.html"
         resources = {r.uri: r.mime_type for r in (await client.list_resources()).resources}
-        assert resources["ui://wardrobe/outfit.html"] == "text/html;profile=mcp-app"
+        assert resources["ui://wardrobe/outfit-v2.html"] == "text/html;profile=mcp-app"
 
 
 async def test_dress_me_uses_home_and_anchor(connect, wardrobe):

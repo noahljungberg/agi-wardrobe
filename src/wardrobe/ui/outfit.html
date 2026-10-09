@@ -91,7 +91,8 @@
     const height = Math.ceil(document.documentElement.scrollHeight);
     if (height === lastHeight) return;
     lastHeight = height;
-    if (!window.openai) notify("ui/notifications/size-changed", { width: document.documentElement.scrollWidth, height });
+    notify("ui/notifications/size-changed", { width: document.documentElement.scrollWidth, height });
+    if (window.openai && typeof window.openai.notifyIntrinsicHeight === "function") window.openai.notifyIntrinsicHeight(height);
   }
   new ResizeObserver(reportSize).observe(document.body);
 
@@ -117,23 +118,28 @@
   });
 
   // ---- ChatGPT Apps SDK globals ---------------------------------------------
+  // ChatGPT can expose window.openai *and* speak the MCP Apps bridge, so read the
+  // globals when they're there but never skip the handshake below.
   function fromOpenAI() {
     const o = window.openai;
-    if (!o) return false;
+    if (!o) return;
     if (o.theme) document.documentElement.dataset.theme = o.theme;
     if (o.toolOutput) render(o.toolOutput, o.toolResponseMetadata);
-    return true;
   }
   window.addEventListener("openai:set_globals", fromOpenAI);
+  fromOpenAI();
 
-  if (!fromOpenAI()) {
+  // ---- MCP Apps handshake: the host sends the tool result only after this -------
+  if (window.parent !== window) {
     request("ui/initialize", {
       protocolVersion: "2026-01-26",
       appCapabilities: {},
-      clientInfo: { name: "wardrobe-outfit", version: "1.0.0" },
+      appInfo: { name: "wardrobe-outfit", version: "1.1.0" },
+      clientInfo: { name: "wardrobe-outfit", version: "1.1.0" },
     }).then((result) => {
       applyTheme(result && result.hostContext);
       notify("ui/notifications/initialized", {});
+      reportSize();
     }).catch(() => {});
   }
 })();

@@ -22,7 +22,7 @@ Last reviewed: 2026-10-09 (v0.1)
 | [weather](design/weather.md) | medium | Fixture tests for both providers; live Open-Meteo and MET Norway calls checked manually | Open-Meteo 429s on shared IPs (fallback covers it); approximate time zone if unknown |
 | [outfit](design/outfit.md) | medium | `test_outfit.py` | Thresholds are hand-tuned and need real-use feedback |
 | [render](design/render.md) | high | `test_render.py`; collage and contact sheet visually checked | HEIC test skips when the wheel lacks an encoder |
-| [outfit card](design/outfit-card.md) | medium | `test_widget.py` in Chromium, both host protocols, light and dark | **Not yet seen in the ChatGPT/Claude iPhone apps** |
+| [outfit card](design/outfit-card.md) | medium | `test_widget.py` in Chromium, both host protocols plus the ChatGPT hybrid, light and dark | Empty frame seen in ChatGPT web on 2026-10-09 (handshake skipped); fixed, **awaiting confirmation in ChatGPT/Claude** |
 | [importer](design/importer.md) | low | `test_importer.py` on Mango-/Zalando-shaped fixtures | **Live shop pages block datacenter IPs; never run from the home connection yet** |
 | [analysis](design/analysis.md) | medium | `test_analysis.py` | Compatibility rule is coarse (neutral/same colour) |
 | [auth](design/auth.md) | high | Full OAuth flow over real HTTP in `test_http.py`, both DCR and CIMD (Claude's default) | Real ChatGPT/Claude clients not yet connected |

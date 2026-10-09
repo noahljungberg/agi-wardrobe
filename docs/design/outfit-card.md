@@ -11,9 +11,9 @@ a grid of item photos with name and brand · colour, the note, and an
 
 ## Public API
 
-- Resource `ui://wardrobe/outfit.html`, MIME `text/html;profile=mcp-app` (MCP
+- Resource `ui://wardrobe/outfit-v2.html`, MIME `text/html;profile=mcp-app` (MCP
   Apps), registered with `_meta.ui.csp.resourceDomains = [public_url]`.
-- Resource `ui://wardrobe/outfit-openai.html`, MIME `text/html+skybridge` (same
+- Resource `ui://wardrobe/outfit-openai-v2.html`, MIME `text/html+skybridge` (same
   HTML, for ChatGPT's `openai/outputTemplate`).
 - Input it renders:
   - `structuredContent = {title, weather, note, collage_url, items: [{id, name, brand, colour, category, image}]}`
@@ -37,10 +37,22 @@ a grid of item photos with name and brand · colour, the note, and an
      `ui/notifications/size-changed` and the `ui/open-link` request; answers
      unknown host requests with `{}`.
   2. **ChatGPT `window.openai`**: `toolOutput`, `toolResponseMetadata`,
-     `theme`, `openExternal`, and the `openai:set_globals` event.
+     `theme`, `openExternal`, `notifyIntrinsicHeight`, and the
+     `openai:set_globals` event.
+
+  The card always runs the bridge handshake when it's in a frame, **even when
+  `window.openai` exists**, and renders from whichever source delivers data
+  first. ChatGPT exposes `window.openai` but (at least for MCP Apps
+  resources) sends the result only after `ui/initialize` →
+  `ui/notifications/initialized`. Skipping the handshake left an empty frame
+  stuck on "Opening Show outfit" (seen 2026-10-09).
 - No network calls of its own.
 
 ## Constraints
+
+- Hosts cache templates by URI. **Bump the `-vN` suffix of `OUTFIT_UI` and
+  `OUTFIT_UI_OPENAI` (in `server.py`) whenever `outfit.html` changes**, and
+  refresh the connector in the chat app.
 
 - Photos travel as data URIs in `_meta` (hidden from the model, no CSP domain
   needed). Keep thumbnails at about 420 px so the result stays well under 1 MB
@@ -54,7 +66,8 @@ a grid of item photos with name and brand · colour, the note, and an
 
 - `tests/test_widget.py` (needs Chromium; skipped otherwise): the bridge
   handshake order, three photos rendered, dark theme applied; the
-  `window.openai` path renders and `openExternal` gets the collage URL.
+  `window.openai` path renders and `openExternal` gets the collage URL; the
+  ChatGPT hybrid case (`window.openai` without data plus the bridge) renders.
 
 ## Non-goals
 

@@ -43,8 +43,8 @@ from wardrobe.weather import DayWeather, Place, WeatherClient
 
 log = logging.getLogger(__name__)
 
-OUTFIT_UI = "ui://wardrobe/outfit.html"
-OUTFIT_UI_OPENAI = "ui://wardrobe/outfit-openai.html"
+OUTFIT_UI = "ui://wardrobe/outfit-v2.html"
+OUTFIT_UI_OPENAI = "ui://wardrobe/outfit-openai-v2.html"
 LOCATION_MAX_AGE = 36 * 3600
 
 INSTRUCTIONS = """\
@@ -58,7 +58,8 @@ then call `show_outfit` with the chosen item ids. Mention the weather in a few w
 - When they say they're wearing something (now or "yesterday"), call `log_wear` without asking. \
 If they accept a suggested outfit ("ok", "wearing that"), log those items.
 - Keep replies short: they read on a phone. One clarifying question at most, and only if truly needed.
-- After `show_outfit`, also give the image link as a markdown link, e.g. [Outfit](url), in case the card doesn't render.
+- After `show_outfit`, also give the image link as a plain markdown link, e.g. [Outfit](url), in case the card \
+doesn't render. Never embed it as an image (`![...](url)`): chat apps can't load it inline.
 - Use `find_items` for questions about what they own, `wardrobe_analysis` for gaps, duplicates and \
 shopping advice (judge gaps against their climate, style notes and what they actually wear).
 - Items marked needs_review were added automatically; if one comes up, you may confirm its details \

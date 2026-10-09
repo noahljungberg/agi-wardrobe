@@ -70,3 +70,10 @@ anything you can and then ask.
   Claude still says "couldn't reach". Open: confirm reachability from outside
   the tailnet and that `WARDROBE_PUBLIC_URL` includes `:10000`. Also found that
   Claude defaults to CIMD, which the server didn't support; added (auth.md).
+- 2026-10-09: **Connected in ChatGPT.** `dress_me` and `show_outfit` work on the
+  real wardrobe; the collage link opens. The outfit card was an empty frame
+  stuck on "Opening Show outfit": the card skipped the MCP Apps handshake
+  because `window.openai` existed. Fixed (always handshake) and covered by a
+  test. The model also embedded the collage as an image (grey box), so the
+  instructions now say link only. Next: pull, restart, re-check the card
+  (task 4).

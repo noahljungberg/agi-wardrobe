@@ -16,7 +16,7 @@ most one question).
 | Tool | R/O | Inputs | Returns |
 |---|---|---|---|
 | `dress_me` | yes | `wearing[]?`, `occasion?`, `place?`, `day` today/tomorrow | Weather + source, guidance, anchors (A1…), candidates per slot (#1…), profile, preferences, recent outfits; **contact sheet image** |
-| `show_outfit` | yes | `item_ids[]`, `title?`, `note?`, `day` | Text with collage link, collage image (640 px), `structuredContent` for the card, `_meta.wardrobe/thumbs`; bound to `ui://wardrobe/outfit.html` |
+| `show_outfit` | yes | `item_ids[]`, `title?`, `note?`, `day` | Text with collage link, collage image (640 px), `structuredContent` for the card, `_meta.wardrobe/thumbs`; bound to `ui://wardrobe/outfit-v2.html` |
 | `log_wear` | no | `items[]` (ids or phrases), `day` today/yesterday/ISO, `note?` | Confirmation; ambiguous phrases are listed, not logged |
 | `find_items` | yes | `query`, `category?`, `include_retired` | Up to 40 matches with wear stats; contact sheet |
 | `save_item` | no | `item_id?` + any item fields, `status`, `from_inbox[]` | Saved summary + photo; clears `needs_review` |
