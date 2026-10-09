@@ -207,11 +207,6 @@ class State:
     def oauth_delete(self, kind: str, key: str) -> None:
         self._exec("DELETE FROM oauth WHERE kind = ? AND key = ?", (kind, key))
 
-    def oauth_delete_where(self, kind: str, field: str, value: str) -> None:
-        self._exec(
-            "DELETE FROM oauth WHERE kind = ? AND json_extract(data, ?) = ?",
-            (kind, f"$.{field}", value),
-        )
 
     # ------------------------------------------------------------------ renders
 

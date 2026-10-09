@@ -73,14 +73,6 @@ class DayWeather:
             parts.append(f"windy, gusts around {self.wind_max:.0f} m/s")
         return ", ".join(parts)
 
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "place": self.place, "day": self.day.isoformat(), "hours": f"{self.hours[0]:02d}–{self.hours[1]:02d}",
-            "temp_min": round(self.temp_min, 1), "temp_max": round(self.temp_max, 1),
-            "feels_min": round(self.feels_min, 1), "rain_prob_max": self.rain_prob_max,
-            "rain_mm": round(self.rain_mm, 1), "wind_max": round(self.wind_max, 1),
-            "conditions": self.conditions, "summary": self.text(),
-        }
 
 
 def _span(hours: list[int]) -> str:

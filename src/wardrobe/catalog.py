@@ -28,7 +28,6 @@ FIELD_ORDER = [
     "warmth", "formality", "rain_ok", "size", "bought", "price", "currency", "source_url",
     "status", "needs_review", "notes",
 ]
-EDITABLE_FIELDS = set(FIELD_ORDER) - {"layer"}
 
 
 @dataclass

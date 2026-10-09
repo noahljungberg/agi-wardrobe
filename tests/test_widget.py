@@ -9,9 +9,9 @@ import shutil
 from pathlib import Path
 
 import pytest
+from conftest import FakeWeather
 from mcp import Client
 
-from conftest import FakeWeather
 from wardrobe.server import Wardrobe, build_mcp
 
 playwright = pytest.importorskip("playwright.async_api")

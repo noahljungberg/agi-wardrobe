@@ -32,7 +32,7 @@ WARDROBE_DIR=/tmp/wardrobe-demo WARDROBE_AUTH=none WARDROBE_HOME="Linköping, Sw
 ```
 
 For the real setup (Arch, systemd, Tailscale Funnel, ChatGPT, iPhone
-Shortcuts), see **[docs/SETUP.md](docs/SETUP.md)**.
+Shortcuts), see **[docs/guides/setup.md](docs/guides/setup.md)**.
 
 ## What the assistant can do
 
@@ -58,11 +58,18 @@ uv run wardrobe check                 # validate the folder
 uv run wardrobe demo <folder>         # demo wardrobe with drawn photos
 uv run wardrobe secret                # random passphrase/token
 uv run pytest -q
+scripts/verify.sh                     # lint + architecture + docs checks + tests
 ```
 
 ## Docs
 
-- [docs/SETUP.md](docs/SETUP.md): install, Tailscale, connecting ChatGPT/Claude
-- [docs/WARDROBE_FOLDER.md](docs/WARDROBE_FOLDER.md): folder and `item.yaml` format
-- [docs/SHORTCUTS.md](docs/SHORTCUTS.md): the three iPhone Shortcuts
-- [docs/DESIGN.md](docs/DESIGN.md): why it's built this way
+For people:
+
+- [docs/guides/setup.md](docs/guides/setup.md): install, Tailscale, connecting ChatGPT/Claude
+- [docs/guides/wardrobe-folder.md](docs/guides/wardrobe-folder.md): folder and `item.yaml` format
+- [docs/guides/shortcuts.md](docs/guides/shortcuts.md): the three iPhone Shortcuts
+
+For coding agents (and anyone changing the code): start at [AGENTS.md](AGENTS.md). It routes to
+[ARCHITECTURE.md](ARCHITECTURE.md), [CONVENTIONS.md](CONVENTIONS.md), the
+[design index](docs/design/index.md), the [plans](docs/plans/) and the
+[quality ledger](docs/QUALITY.md).

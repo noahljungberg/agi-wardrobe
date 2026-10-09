@@ -28,7 +28,7 @@ own clothes? Generate a demo with drawn placeholder photos:
 uv run wardrobe demo ~/wardrobe-demo
 ```
 
-The format is described in [WARDROBE_FOLDER.md](WARDROBE_FOLDER.md). Once you
+The format is described in [wardrobe-folder.md](wardrobe-folder.md). Once you
 have links, import them from the command line:
 
 ```sh
@@ -132,7 +132,7 @@ The connector then shows up in the Claude iPhone app as well.
 
 ## 8. iPhone Shortcuts
 
-See [SHORTCUTS.md](SHORTCUTS.md):
+See [shortcuts.md](shortcuts.md):
 
 - location on app open (needed for weather where you are),
 - "Add to wardrobe" from Safari,

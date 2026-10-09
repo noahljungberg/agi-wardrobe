@@ -1,11 +1,11 @@
-# AGI Wardrobe — Design
+# Product design overview
 
 A personal wardrobe assistant that lives inside the chat app you already use
 (ChatGPT first, Claude optional). You say what you're wearing or ask what to
 wear; it knows your clothes (with pictures), where you are and the weather,
 and answers in one message. No website, no daily chores.
 
-Status: **built** (v0.1). Setup: [SETUP.md](SETUP.md). Still to verify on the
+Status: complete (v0.1). Setup: [guides/setup.md](../guides/setup.md). Still to verify on the
 real phone: which outfit-display method each app renders (see "Showing the
 outfit").
 

@@ -32,6 +32,7 @@ from wardrobe.analysis import analyse
 from wardrobe.auth import SCOPE, PassphraseOAuthProvider
 from wardrobe.catalog import CATEGORIES, IMAGE_EXTS, Catalog, Item
 from wardrobe.config import Config
+from wardrobe.heuristics import layer_for
 from wardrobe.matching import resolve, search
 from wardrobe.outfit import SLOT_TITLES, SLOTS, pick_candidates, slot_of, temperature_bias
 from wardrobe.render import Renderer
@@ -132,6 +133,10 @@ class Wardrobe:
         raise LocationUnknown("no location yet")
 
     def local_today(self, place: Place | None = None) -> date:
+        """The user's calendar day: from `place`, else the last known location, else the server's."""
+        if place is None:
+            loc = self.state.location()
+            place = Place(loc.lat, loc.lon, loc.name, loc.tz) if loc else None
         if place and place.tz:
             try:
                 return datetime.now(ZoneInfo(place.tz)).date()
@@ -434,7 +439,7 @@ def build_mcp(w: Wardrobe) -> MCPServer:
         if not matches:
             return CallToolResult(content=[_text(f"No items match {query!r}.")])
         last_worn, counts = w.state.last_worn(), w.state.wear_counts()
-        today = date.today()
+        today = w.local_today()
         lines = [f"{len(matches)} item(s):"]
         for n, item in enumerate(matches[:40], 1):
             lines.append(_item_line(f"#{n}", item, last_worn.get(item.id), today) + f" · worn {counts.get(item.id, 0)}×" + ("" if item.active else f" · {item.status}"))
@@ -474,8 +479,6 @@ def build_mcp(w: Wardrobe) -> MCPServer:
             }.items() if v is not None
         }
         if category == "tops" and type:
-            from wardrobe.heuristics import layer_for
-
             fields["layer"] = layer_for("tops", type)
         if item_id is not None and w.catalog.get(item_id) is None:
             return CallToolResult(content=[_text(f"No item with id {item_id!r}.")], is_error=True)
@@ -539,7 +542,7 @@ def build_mcp(w: Wardrobe) -> MCPServer:
     async def wardrobe_analysis() -> str:
         """Counts, coverage, near-duplicates, hard-to-combine items and wear statistics, for gap and shopping advice."""
         result = analyse(
-            w.catalog.items(), w.state.wear_counts(), w.state.last_worn(), w.state.wear_history(), date.today()
+            w.catalog.items(), w.state.wear_counts(), w.state.last_worn(), w.state.wear_history(), w.local_today()
         )
         profile = w.catalog.profile()
         result["profile"] = {k: profile[k] for k in ("home", "style", "likes", "dislikes", "runs") if profile.get(k)}

@@ -18,7 +18,6 @@ from mcp.server.auth.provider import (
     AccessToken,
     AuthorizationCode,
     AuthorizationParams,
-    AuthorizeError,
     RefreshToken,
     TokenError,
     construct_redirect_uri,

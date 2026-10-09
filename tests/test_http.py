@@ -12,11 +12,11 @@ import httpx
 import httpx2
 import pytest
 import uvicorn
+from conftest import FakeWeather
 from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 from PIL import Image
 
-from conftest import FakeWeather
 from wardrobe.config import Config
 from wardrobe.server import Wardrobe, build_mcp, build_private_app, build_public_app
 
