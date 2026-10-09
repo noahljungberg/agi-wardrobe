@@ -16,6 +16,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 from mcp.server.apps import Apps, ResourceCsp
+from mcp.server.auth.handlers.metadata import MetadataHandler
+from mcp.server.auth.routes import build_metadata, cors_middleware
 from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions, RevocationOptions
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.resources import TextResource
@@ -614,7 +616,33 @@ def build_public_app(w: Wardrobe, mcp: MCPServer) -> Starlette:
         allowed_hosts=[hostname, f"{hostname}:*", f"127.0.0.1:{port}", f"localhost:{port}"],
         allowed_origins=[config.public_url, "https://chatgpt.com", "https://claude.ai", f"http://127.0.0.1:{port}", f"http://localhost:{port}"],
     )
-    return mcp.streamable_http_app(stateless_http=True, json_response=True, transport_security=security, host=config.bind)
+    app = mcp.streamable_http_app(stateless_http=True, json_response=True, transport_security=security, host=config.bind)
+    if mcp.settings.auth:
+        _advertise_client_metadata_documents(app, mcp.settings.auth)
+    return app
+
+
+def _advertise_client_metadata_documents(app: Starlette, auth: AuthSettings) -> None:
+    """The SDK's metadata route doesn't announce CIMD support; replace it with one that does.
+
+    Claude recommends CIMD ("use Claude's published identity") and only uses it when the
+    authorization server metadata says `client_id_metadata_document_supported: true`.
+    """
+    metadata = build_metadata(
+        auth.issuer_url,
+        auth.service_documentation_url,
+        auth.client_registration_options or ClientRegistrationOptions(),
+        auth.revocation_options or RevocationOptions(),
+    )
+    metadata.client_id_metadata_document_supported = True
+    metadata.token_endpoint_auth_methods_supported = ["none", "client_secret_post", "client_secret_basic"]
+    path = "/.well-known/oauth-authorization-server"
+    for i, route in enumerate(app.router.routes):
+        if getattr(route, "path", None) == path:
+            app.router.routes[i] = Route(path, endpoint=cors_middleware(MetadataHandler(metadata).handle, ["GET", "OPTIONS"]),
+                                         methods=["GET", "OPTIONS"])
+            return
+    raise RuntimeError(f"{path} route not found; did the MCP SDK change?")
 
 
 # -------------------------------------------------------------- private API

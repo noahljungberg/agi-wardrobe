@@ -55,9 +55,10 @@ Also enforced by `scripts/check_architecture.py` (`THIRD_PARTY`).
 | Package | Allowed in | Why |
 |---|---|---|
 | `mcp`, `starlette` | `server`, `auth` | Protocol and HTTP stay at the edge; domain code is testable without them. |
-| `mcp_types`, `pydantic` | `server` | Tool schemas and results. |
+| `mcp_types` | `server` | Tool schemas and results. |
+| `pydantic` | `server`, `auth` | Tool parameter schemas; validating client metadata documents. |
 | `uvicorn` | `cli` | Process concerns only. |
-| `httpx` | `weather`, `importer`, `server` | Network I/O is visible in exactly these places. `server` only catches its errors. |
+| `httpx` | `weather`, `importer`, `auth`, `server` | Network I/O is visible in exactly these places. `auth` fetches client metadata documents from trusted domains only; `server` only catches errors. |
 | `playwright` | `importer` | Optional extra (`--extra browser`), imported lazily. |
 | `PIL`, `pillow_heif` | `render`, `importer`, `demo` | Image work. `pillow_heif` registers once in `render`. |
 | `yaml` | `catalog` | The folder format belongs to the catalog. |

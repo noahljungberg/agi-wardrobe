@@ -176,3 +176,61 @@ async def test_funnel_host_with_or_without_port(tmp_path, demo_dir):
                 assert r.status_code == expected, (host, r.status_code, r.text)
     finally:
         await stop(*server)
+
+
+CLAUDE_CIMD = "https://claude.ai/oauth/mcp-oauth-client-metadata"
+CLAUDE_CALLBACK = "https://claude.ai/api/mcp/auth_callback"
+
+
+async def test_client_metadata_document_login(running, monkeypatch):
+    """Claude's recommended option: client_id is a URL to its published metadata (CIMD)."""
+    from wardrobe import auth
+
+    fetched = []
+
+    async def fake_fetch(url):
+        fetched.append(url)
+        if url == CLAUDE_CIMD:
+            return {"client_id": CLAUDE_CIMD, "client_name": "Claude", "redirect_uris": [CLAUDE_CALLBACK],
+                    "grant_types": ["authorization_code", "refresh_token"], "response_types": ["code"],
+                    "token_endpoint_auth_method": "none"}
+        return {"client_id": "https://claude.ai/someone-else", "redirect_uris": [CLAUDE_CALLBACK]}
+
+    monkeypatch.setattr(auth, "fetch_json", fake_fetch)
+    w, base, _ = running
+    async with httpx.AsyncClient(follow_redirects=False) as http:
+        meta = (await http.get(f"{base}/.well-known/oauth-authorization-server")).json()
+        assert meta["client_id_metadata_document_supported"] is True
+        assert "none" in meta["token_endpoint_auth_methods_supported"]
+
+        verifier = secrets.token_urlsafe(48)
+        challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+        params = {"response_type": "code", "redirect_uri": CLAUDE_CALLBACK, "state": "s2",
+                  "code_challenge": challenge, "code_challenge_method": "S256", "resource": f"{base}/mcp"}
+
+        # untrusted host: never fetched; mismatched document: rejected
+        bad = await http.get(meta["authorization_endpoint"], params={**params, "client_id": "https://evil.example/c.json"})
+        assert bad.status_code == 400 and "https://evil.example/c.json" not in fetched
+        mismatch = await http.get(meta["authorization_endpoint"], params={**params, "client_id": "https://claude.ai/fake.json"})
+        assert mismatch.status_code == 400
+
+        auth_resp = await http.get(meta["authorization_endpoint"], params={**params, "client_id": CLAUDE_CIMD})
+        assert auth_resp.status_code == 302, auth_resp.text
+        page = await http.get(auth_resp.headers["location"])
+        assert "Claude wants to use your wardrobe" in page.text
+        req = parse_qs(urlparse(auth_resp.headers["location"]).query)["req"][0]
+        login = await http.post(f"{base}/login", data={"req": req, "passphrase": PASSPHRASE})
+        back = urlparse(login.headers["location"])
+        assert f"{back.scheme}://{back.netloc}{back.path}" == CLAUDE_CALLBACK
+        token = await http.post(meta["token_endpoint"], data={
+            "grant_type": "authorization_code", "code": parse_qs(back.query)["code"][0], "redirect_uri": CLAUDE_CALLBACK,
+            "client_id": CLAUDE_CIMD, "code_verifier": verifier,
+        })
+        assert token.status_code == 200, token.text
+        listed = await http.post(f"{base}/mcp", headers={"Authorization": f"Bearer {token.json()['access_token']}",
+                                                         "Accept": "application/json, text/event-stream"},
+                                 json={"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                                       "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+                                                  "clientInfo": {"name": "claude", "version": "1"}}})
+        assert listed.status_code == 200, listed.text
+        assert fetched.count(CLAUDE_CIMD) == 1  # cached after the first fetch

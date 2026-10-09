@@ -18,6 +18,7 @@ remove an entry in the change that fixes it.
 | 9 | auth | Failed-login lockout is in memory and resets on restart | Acceptable for one user behind a long passphrase |
 | 10 | http-api | A urlencoded `/location` body with raw (non-percent-encoded) UTF-8 is decoded as Latin-1 | Shortcuts send JSON, so this doesn't affect them; only hand-made curl calls |
 | 11 | render | Own photos (inbox) have messy backgrounds next to clean packshots | Optional background removal (e.g. `rembg`) when saving from the inbox |
+| 12 | auth | CIMD documents are only accepted from a fixed list of AI-client domains | If a client publishes its metadata elsewhere, login fails with "client not found"; extend `CIMD_TRUSTED_DOMAINS` |
 
 ## Ideas (not planned)
 

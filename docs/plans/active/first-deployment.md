@@ -65,3 +65,8 @@ anything you can and then ask.
   checks now accept the Funnel hostname with or without port, so `:10000`
   works once Funnel serves. Setup guide now says which URL goes where and how
   to test from outside the tailnet.
+- 2026-10-09: Second attempt: `:10000/mcp` answers `invalid_token` in the
+  owner's browser (server and Funnel port OK, at least from the tailnet), but
+  Claude still says "couldn't reach". Open: confirm reachability from outside
+  the tailnet and that `WARDROBE_PUBLIC_URL` includes `:10000`. Also found that
+  Claude defaults to CIMD, which the server didn't support; added (auth.md).

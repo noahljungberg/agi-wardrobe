@@ -1,19 +1,25 @@
 """Single-user OAuth for the public MCP endpoint.
 
-ChatGPT/Claude register themselves (dynamic client registration), send you to
-a one-page login where you type your passphrase once, and then hold a token.
-Everything is stored in the state DB so restarts don't log you out.
+ChatGPT/Claude identify themselves either by registering (dynamic client
+registration) or with a published client metadata document (CIMD: the
+client_id is an https URL we fetch). Then they send you to a one-page login
+where you type your passphrase once, and hold a token. Everything is stored in
+the state DB so restarts don't log you out.
 """
 
 from __future__ import annotations
 
 import hmac
 import html
+import logging
 import secrets
 import time
 from collections import deque
+from collections.abc import Awaitable, Callable
 from typing import Any
+from urllib.parse import urlparse
 
+import httpx
 from mcp.server.auth.provider import (
     AccessToken,
     AuthorizationCode,
@@ -23,6 +29,7 @@ from mcp.server.auth.provider import (
     construct_redirect_uri,
 )
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
+from pydantic import ValidationError
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 
@@ -33,23 +40,88 @@ ACCESS_TTL = 7 * 86400
 REFRESH_TTL = 365 * 86400
 CODE_TTL = 300
 PENDING_TTL = 900
+CIMD_TTL = 3600
+CIMD_MAX_BYTES = 64 * 1024
+# Client metadata documents are only fetched from these domains (and their subdomains).
+# Fetching any URL a stranger puts in /authorize would let them make this home
+# server request arbitrary addresses (SSRF), so the list stays explicit.
+CIMD_TRUSTED_DOMAINS = ("claude.ai", "claude.com", "anthropic.com", "chatgpt.com", "openai.com")
+
+log = logging.getLogger(__name__)
 
 
 PAGE_HEADERS = {"X-Frame-Options": "DENY", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer"}
 
 
+def is_trusted_cimd_url(url: str) -> bool:
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    return (
+        parsed.scheme == "https"
+        and parsed.port in (None, 443)
+        and not parsed.username
+        and parsed.path not in ("", "/")
+        and any(host == d or host.endswith("." + d) for d in CIMD_TRUSTED_DOMAINS)
+    )
+
+
+async def fetch_json(url: str) -> Any:
+    async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
+        resp = await client.get(url, headers={"Accept": "application/json"})
+    resp.raise_for_status()
+    if len(resp.content) > CIMD_MAX_BYTES:
+        raise ValueError("client metadata document too large")
+    return resp.json()
+
+
 class PassphraseOAuthProvider:
-    def __init__(self, state: State, public_url: str, passphrase: str):
+    def __init__(
+        self,
+        state: State,
+        public_url: str,
+        passphrase: str,
+        fetch: Callable[[str], Awaitable[Any]] | None = None,
+    ):
         self.state = state
         self.public_url = public_url
         self._passphrase = passphrase
+        self._fetch = fetch
         self._failures: deque[float] = deque()
 
     # ------------------------------------------------------------ clients
 
     async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
         data = self.state.oauth_get("client", client_id)
-        return OAuthClientInformationFull.model_validate(data) if data else None
+        if data:
+            return OAuthClientInformationFull.model_validate(data)
+        if client_id.startswith("https://"):
+            return await self._load_metadata_document(client_id)
+        return None
+
+    async def _load_metadata_document(self, url: str) -> OAuthClientInformationFull | None:
+        """CIMD: the client_id is the URL of the client's metadata document."""
+        if not is_trusted_cimd_url(url):
+            log.warning("refusing client metadata document from untrusted URL %s", url)
+            return None
+        try:
+            doc = await (self._fetch or fetch_json)(url)
+        except (httpx.HTTPError, ValueError) as exc:
+            log.warning("couldn't fetch client metadata document %s: %r", url, exc)
+            return None
+        if not isinstance(doc, dict) or doc.get("client_id") != url:
+            log.warning("client metadata document %s doesn't name itself as client_id", url)
+            return None
+        # Public client: PKCE and the document's redirect_uris are what protect the flow.
+        fields = {k: v for k, v in doc.items() if k not in ("client_secret", "client_secret_expires_at")}
+        try:
+            info = OAuthClientInformationFull.model_validate({**fields, "token_endpoint_auth_method": "none"})
+        except ValidationError as exc:
+            log.warning("invalid client metadata document %s: %s", url, exc)
+            return None
+        if not info.redirect_uris:
+            return None
+        self.state.oauth_put("client", url, info.model_dump(mode="json"), time.time() + CIMD_TTL)
+        return info
 
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
         assert client_info.client_id

@@ -160,7 +160,10 @@ server is the same.
 1. On **claude.ai**, go to **Settings → Connectors → Add custom connector**.
 2. Enter the URL `https://<machine>.<tailnet>.ts.net/mcp` (with `:10000`
    before `/mcp` if you used that Funnel port). Never use `:8443`.
-3. Log in with your passphrase.
+3. Under **Authentication** keep **Log in now**. Under **OAuth client**, the
+   default **Use Claude's published identity (CIMD)** works, and so does
+   **Register automatically (DCR)**.
+4. Log in with your passphrase.
 
 The connector then shows up in the Claude iPhone app as well.
 
