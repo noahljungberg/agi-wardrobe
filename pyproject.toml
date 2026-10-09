@@ -1,0 +1,35 @@
+[project]
+name = "wardrobe"
+version = "0.1.0"
+description = "MCP server that knows your wardrobe (with photos), where you are and the weather"
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28.1",
+    "mcp>=2.3",
+    "pillow>=12.3.0",
+    "pillow-heif>=1.8.0",
+    "python-multipart>=0.0.32",
+    "pyyaml>=6.0.3",
+]
+
+[project.optional-dependencies]
+browser = [
+    "playwright>=1.63.0",
+]
+
+[project.scripts]
+wardrobe = "wardrobe.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11.32,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

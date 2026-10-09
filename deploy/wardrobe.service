@@ -1,0 +1,19 @@
+# systemd user service. Install:
+#   mkdir -p ~/.config/systemd/user && cp deploy/wardrobe.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now wardrobe
+#   sudo loginctl enable-linger $USER   # keep it running when you're logged out
+[Unit]
+Description=Wardrobe MCP server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/agi-wardrobe
+EnvironmentFile=%h/.config/wardrobe/wardrobe.env
+ExecStart=%h/agi-wardrobe/.venv/bin/wardrobe serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

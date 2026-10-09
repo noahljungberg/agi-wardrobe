@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Outfit</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: light-dark(#faf8f5, #191715);
+    --tile: light-dark(#efebe5, #26231f);
+    --photo: #f3f1ed; /* product photos have light backgrounds, so keep this light in dark mode too */
+    --fg: light-dark(#221f1c, #f2eee9);
+    --muted: light-dark(#786f69, #a59d95);
+    --font: var(--font-sans, -apple-system, system-ui, "Segoe UI", sans-serif);
+  }
+  html[data-theme="light"] { color-scheme: light; }
+  html[data-theme="dark"] { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: transparent; color: var(--fg); font: 15px/1.4 var(--font); }
+  .card { background: var(--bg); border-radius: 18px; padding: 16px; }
+  h1 { font-size: 19px; margin: 0; letter-spacing: -0.01em; }
+  .weather { color: var(--muted); margin: 3px 0 14px; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+  .item { min-width: 0; }
+  .photo { aspect-ratio: 4 / 5; background: var(--photo); border-radius: 14px; display: grid; place-items: center; overflow: hidden; }
+  .photo img { width: 100%; height: 100%; object-fit: contain; padding: 8px; }
+  .photo .none { color: #786f69; font-size: 13px; }
+  .name { font-weight: 600; margin-top: 7px; font-size: 14px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .meta { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .note { margin: 14px 0 0; }
+  .actions { margin-top: 14px; }
+  .actions button { font: inherit; font-size: 14px; border: 0; border-radius: 999px; padding: 9px 14px; background: var(--tile); color: var(--fg); cursor: pointer; }
+  .empty { color: var(--muted); padding: 24px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="card" id="root"><div class="empty">Putting the outfit together…</div></div>
+<script>
+(() => {
+  const root = document.getElementById("root");
+  let current = null;
+  let nextId = 1;
+  const pending = new Map();
+
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function render(data, meta) {
+    if (!data || !Array.isArray(data.items)) return;
+    current = data;
+    const thumbs = (meta && meta["wardrobe/thumbs"]) || {};
+    const tiles = data.items.map((it) => {
+      const src = thumbs[it.id] || it.image || "";
+      const photo = src ? `<img alt="${esc(it.name)}" src="${esc(src)}">` : `<span class="none">no photo yet</span>`;
+      const sub = [it.brand, it.colour].filter(Boolean).join(" · ");
+      return `<div class="item"><div class="photo">${photo}</div><div class="name">${esc(it.name)}</div><div class="meta">${esc(sub)}</div></div>`;
+    }).join("");
+    root.innerHTML =
+      `<h1>${esc(data.title || "Outfit")}</h1>` +
+      (data.weather ? `<div class="weather">${esc(data.weather)}</div>` : "") +
+      `<div class="grid">${tiles}</div>` +
+      (data.note ? `<p class="note">${esc(data.note)}</p>` : "") +
+      (data.collage_url ? `<div class="actions"><button id="open">Open full image</button></div>` : "");
+    const btn = document.getElementById("open");
+    if (btn) btn.onclick = () => openLink(data.collage_url);
+    reportSize();
+  }
+
+  function openLink(url) {
+    if (window.openai && window.openai.openExternal) return window.openai.openExternal({ href: url });
+    request("ui/open-link", { url }).catch(() => window.open(url, "_blank"));
+  }
+
+  // ---- MCP Apps bridge (JSON-RPC over postMessage) --------------------------
+  function send(msg) { window.parent.postMessage({ jsonrpc: "2.0", ...msg }, "*"); }
+  function request(method, params) {
+    const id = nextId++;
+    send({ id, method, params });
+    return new Promise((resolve, reject) => pending.set(id, { resolve, reject }));
+  }
+  function notify(method, params) { send({ method, params }); }
+
+  function applyTheme(ctx) {
+    if (ctx && ctx.theme) document.documentElement.dataset.theme = ctx.theme;
+    const vars = ctx && ctx.styles && ctx.styles.variables;
+    if (vars) for (const [k, v] of Object.entries(vars)) if (v) document.documentElement.style.setProperty(k, v);
+  }
+
+  let lastHeight = 0;
+  function reportSize() {
+    const height = Math.ceil(document.documentElement.scrollHeight);
+    if (height === lastHeight) return;
+    lastHeight = height;
+    if (!window.openai) notify("ui/notifications/size-changed", { width: document.documentElement.scrollWidth, height });
+  }
+  new ResizeObserver(reportSize).observe(document.body);
+
+  window.addEventListener("message", (event) => {
+    const msg = event.data;
+    if (!msg || msg.jsonrpc !== "2.0") return;
+    if (msg.id !== undefined && pending.has(msg.id) && !msg.method) {
+      const p = pending.get(msg.id);
+      pending.delete(msg.id);
+      msg.error ? p.reject(msg.error) : p.resolve(msg.result);
+      return;
+    }
+    switch (msg.method) {
+      case "ui/notifications/tool-result":
+        render(msg.params && (msg.params.structuredContent || msg.params.structured_content), msg.params && msg.params._meta);
+        break;
+      case "ui/notifications/host-context-changed":
+        applyTheme(msg.params);
+        break;
+      default:
+        if (msg.id !== undefined && msg.method) send({ id: msg.id, result: {} }); // e.g. ui/resource-teardown
+    }
+  });
+
+  // ---- ChatGPT Apps SDK globals ---------------------------------------------
+  function fromOpenAI() {
+    const o = window.openai;
+    if (!o) return false;
+    if (o.theme) document.documentElement.dataset.theme = o.theme;
+    if (o.toolOutput) render(o.toolOutput, o.toolResponseMetadata);
+    return true;
+  }
+  window.addEventListener("openai:set_globals", fromOpenAI);
+
+  if (!fromOpenAI()) {
+    request("ui/initialize", {
+      protocolVersion: "2026-01-26",
+      appCapabilities: {},
+      clientInfo: { name: "wardrobe-outfit", version: "1.0.0" },
+    }).then((result) => {
+      applyTheme(result && result.hostContext);
+      notify("ui/notifications/initialized", {});
+    }).catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>

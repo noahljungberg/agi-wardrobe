@@ -5,8 +5,9 @@ A personal wardrobe assistant that lives inside the chat app you already use
 wear; it knows your clothes (with pictures), where you are and the weather,
 and answers in one message. No website, no daily chores.
 
-Status: **design agreed in discussion, not built yet.** Open questions are at
-the bottom.
+Status: **built** (v0.1). Setup: [SETUP.md](SETUP.md). Still to verify on the
+real phone: which outfit-display method each app renders (see "Showing the
+outfit").
 
 ## Principles
 
@@ -100,8 +101,8 @@ collages) lives in `$WARDROBE_STATE`, never in your folder.
 1. **Links (main path).** You collect product links for what you own (with
    the right colour selected). Either paste them into `links.txt` or into
    the chat. The importer, per link:
-   - opens the page with headless Chromium from the home connection
-     (retail sites block datacenter IPs);
+   - fetches the page from the home connection (retail sites block
+     datacenter IPs), falling back to headless Chromium;
    - reads JSON-LD `Product` / OpenGraph data plus small per-site parsers
      (Mango product id + colour code, Zalando SKU);
    - downloads 1–3 packshot images and writes a prefilled `item.yaml`;
@@ -110,9 +111,10 @@ collages) lives in `$WARDROBE_STATE`, never in your folder.
    page: Share → "Add to wardrobe". The Shortcut runs JavaScript on the page
    *in your own browser* to grab title, colour and image URLs, and posts them
    to `/import` over Tailscale.
-3. **Photos (for things with no link).** Drop a photo in `inbox/`. Next time
-   you chat, the assistant sees it, proposes the metadata, and saves it after
-   one "yes". Optional background removal makes own photos match packshots.
+3. **Photos (for things with no link).** Share photos to the "Add photo to
+   wardrobe" Shortcut (uploads to `/inbox`), or drop them in `inbox/`. Next
+   time you chat, the assistant sees them, proposes the metadata, and saves
+   them after one "yes".
 
 Seed: links already found in old order emails (Mango, Zalando) can be put in
 `links.txt` as a head start.
@@ -124,20 +126,22 @@ Seed: links already found in old order emails (Mango, Zalando) can be put in
   fresh with no manual step. Only the latest position is stored.
 - Saying "I'm in SF" in chat overrides it.
 - Open-Meteo hourly forecast for the hours you're out (temperature,
-  feels-like, precipitation probability, wind), not just "now".
+  feels-like, precipitation probability, wind), not just "now". MET Norway
+  (api.met.no) is the automatic fallback.
 
 ## MCP tools
 
 | Tool | Read-only? | Purpose |
 |---|---|---|
-| `dress_me(anchor?, occasion?, location?)` | yes | Resolves fuzzy anchor items ("beige cords"), gets location + weather, returns weather-appropriate candidates (skipping recently worn) **with thumbnails** so the model can see them. |
-| `show_outfit(item_ids, caption?)` | yes | Renders the outfit: MCP Apps card + image content + collage link. |
-| `log_wear(items, date?)` | no | Records what you wore. Called when you say you're wearing something. |
-| `find_items(query)` | yes | "Do I have a navy knit?" — returns matches with thumbnails. |
+| `dress_me(wearing?, occasion?, place?, day?)` | yes | Resolves fuzzy anchor items ("beige cords"), gets location + weather, returns weather-appropriate candidates per slot (skipping recently worn) **plus one numbered photo sheet** so the model sees them all in a single image. |
+| `show_outfit(item_ids, title?, note?)` | yes | Renders the outfit: MCP Apps card + image content + collage link. |
+| `log_wear(items, day?)` | no | Records what you wore. Called when you say you're wearing something. |
+| `find_items(query, category?)` | yes | "Do I have a navy knit?": matches with a photo sheet. |
 | `import_links(urls)` | no | Runs the link importer. |
-| `review_inbox()` / `save_item(...)` | no / no | Tag new photos from `inbox/`; edit item metadata. |
-| `wardrobe_analysis()` | yes | Counts by category/colour/warmth/formality, never-worn, cost-per-wear, orphans (pair with little), near-duplicates, coverage vs. the climates you've been in. The model turns this into gap advice. |
-| `remember(preference)` | no | "I hate black with brown." |
+| `review_inbox()` / `save_item(...)` | yes / no | Tag new photos from `inbox/`; create/edit/retire items. |
+| `wardrobe_analysis()` | yes | Counts by slot/colour/warmth/formality, coverage checks, near-duplicates, hard-to-combine items, never-worn, cost-per-wear. The model turns this into gap advice. |
+| `remember(note)` / `forget(id)` | no | Lasting preferences ("I hate black with brown"). |
+| `set_location(place)` | no | "I'm in SF" when the phone hasn't reported it. |
 
 Server-level instructions tell the model: check weather before suggesting,
 always show the outfit, log wear silently when the user says what they're
@@ -147,8 +151,12 @@ wearing, keep answers phone-short, at most one question.
 
 Clients differ in what they render, so `show_outfit` returns all of:
 
-- **A. MCP Apps UI resource** — inline outfit card (photos + weather). Best
+- **A. MCP Apps UI resource**: inline outfit card (photos + weather). Best
   experience; confirmed on ChatGPT and Claude web/desktop, iPhone to verify.
+  The card supports both the MCP Apps bridge (`ui/initialize`, tool-result
+  notifications) and ChatGPT's `window.openai` globals. Photos travel as data
+  URIs in the result's `_meta` (hidden from the model), so no CSP setup is
+  needed.
 - **B. Image content** — the model sees it; Claude shows it inside the
   collapsed tool block.
 - **C. Collage link** — one PNG (outerwear / top / bottom / shoes + weather
@@ -158,28 +166,23 @@ Clients differ in what they render, so `show_outfit` returns all of:
 ## Security
 
 - Funnel exposes only `/mcp` and `/img`.
-- `/mcp` requires OAuth (single user, passphrase login shown once when adding
-  the connector).
+- `/mcp` requires OAuth (dynamic client registration + PKCE, single user,
+  passphrase login shown once when adding the connector). Tokens persist in
+  SQLite and refresh tokens rotate.
+- The MCP transport is stateless HTTP, so server restarts never break a
+  client's session.
 - Collage URLs are random, unguessable and expire.
 - Location and import endpoints are reachable only inside the tailnet.
 - Only the latest location is stored; no movement history.
 
-## Build plan
+## Build status
 
-0. **Spike (≈1 h).** Minimal server behind Funnel with a fake `show_outfit`
-   returning A + B + C. Verify on iPhone: Developer mode available on Pro
-   Lite? write tools allowed? which display methods render?
-1. Folder format, index + file watcher, `find_items`, `show_outfit`
-   (collage renderer).
-2. Link importer (headless Chromium + JSON-LD/OG + Mango/Zalando parsers),
-   `import_links`, `links.txt`.
-3. Weather + location Shortcut, `dress_me`, `log_wear`, server instructions.
-4. Inbox tagging, background removal, `wardrobe_analysis`, `remember`.
-5. Later: trip packing lists ("SF for 5 days"), Claude connector.
-
-## Open questions
-
-- Home device: OS / always on? (decides Docker vs native, Chromium setup)
-- How photos reach `inbox/` from the iPhone (Syncthing, SMB over Tailscale,
-  iCloud Drive on a Mac).
-- Where the seed folder should live (keep personal data out of this code repo).
+- [x] Folder format, index + change detection, matching (English + Swedish)
+- [x] Weather (Open-Meteo, MET Norway fallback) and location
+- [x] `dress_me`, `show_outfit` (collage + MCP Apps card), `log_wear`, `find_items`
+- [x] Link importer (JSON-LD/OpenGraph, Mango colour variants, Zalando packshots)
+- [x] Share-sheet import and inbox upload endpoints
+- [x] `wardrobe_analysis`, preferences, OAuth, systemd unit, docs, tests
+- [ ] Verify the card on the real iPhone (ChatGPT, Claude)
+- [ ] Verify the importer against live shop pages from the home connection
+- [ ] Later: trip packing lists, background removal for your own photos

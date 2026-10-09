@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+/state/
+/wardrobe/
+*.env
+!deploy/wardrobe.env.example
