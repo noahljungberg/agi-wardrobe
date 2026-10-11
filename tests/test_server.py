@@ -137,3 +137,30 @@ async def test_geocoder_outage_falls_back(connect, wardrobe):
         assert "Ask which city" in texts(r)
         r = await client.call_tool("set_location", {"place": "Paris"})
         assert "unreachable" in texts(r)
+
+
+async def test_appearance_reaches_the_stylist(connect, wardrobe):
+    async with connect() as client:
+        r = await client.call_tool("dress_me", {})
+        assert "appearance not saved yet" in texts(r)
+        plain_sheet = len(base64.b64decode(images(r)[0].data))
+
+        inbox = wardrobe.catalog.inbox_dir
+        (inbox / "me.jpg").write_bytes((wardrobe.catalog.items_dir / "mango-wool-coat-with-high-collar-black/1.jpg").read_bytes())
+        saved = await client.call_tool("update_appearance", {"hair": "blonde", "eyes": "blue", "skin": "fair", "from_inbox": ["me.jpg"]})
+        assert "blonde hair, blue eyes, fair skin" in texts(saved) and "1 photo" in texts(saved)
+
+        r = await client.call_tool("dress_me", {})
+        assert '**You** — blonde hair, blue eyes, fair skin (photo tile "You")' in texts(r)
+        assert len(base64.b64decode(images(r)[0].data)) != plain_sheet  # the "You" tile is on the sheet
+
+        about = await client.call_tool("about_me", {})
+        assert "blonde hair" in texts(about) and len(images(about)) == 1
+
+        await client.call_tool("update_appearance", {"photo_in_suggestions": False})
+        r = await client.call_tool("dress_me", {})
+        assert "**You** — blonde hair" in texts(r) and "photo tile" not in texts(r)
+
+        data = json.loads(texts(await client.call_tool("wardrobe_analysis", {})))
+        assert data["appearance"].startswith("blonde hair")
+        assert "No inbox photo" in texts(await client.call_tool("update_appearance", {"from_inbox": ["nope.jpg"]}))

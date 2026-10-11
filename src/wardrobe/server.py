@@ -66,6 +66,10 @@ shopping advice (judge gaps against their climate, style notes and what they act
 - Items marked needs_review were added automatically; if one comes up, you may confirm its details \
 with the user and fix them with `save_item`.
 - `remember` stores lasting preferences ("never black with brown"); respect stored preferences.
+- Dress the person, not just the weather: `dress_me` includes how they look (hair, eyes, skin) and, \
+if they added one, a photo tile labelled "You". Favour colours that flatter their colouring near the \
+face, and fits that suit their build. If they describe their looks, save it with `update_appearance`; \
+use `about_me` for questions like "what colours suit me?".
 - New photos in the inbox: call `review_inbox`, describe each item and save it with `save_item` (from_inbox).
 """
 
@@ -215,6 +219,34 @@ def _resolve_many(items: list[Item], phrases: list[str]) -> tuple[list[Item], li
     return found, problems
 
 
+def describe_appearance(me: dict[str, Any]) -> str | None:
+    """'blonde hair, blue eyes, fair skin (cool undertone), 185 cm, slim build. Fit: …'."""
+    parts = []
+    if me.get("hair"):
+        parts.append(f"{me['hair']} hair")
+    if me.get("eyes"):
+        parts.append(f"{me['eyes']} eyes")
+    if me.get("skin"):
+        parts.append(f"{me['skin']} skin" + (f" ({me['undertone']} undertone)" if me.get("undertone") else ""))
+    elif me.get("undertone"):
+        parts.append(f"{me['undertone']} undertone")
+    if me.get("height_cm"):
+        parts.append(f"{me['height_cm']} cm")
+    if me.get("build"):
+        parts.append(f"{me['build']} build")
+    text = ", ".join(str(p) for p in parts)
+    extras = [f"Fit: {me['fit_notes']}" if me.get("fit_notes") else "", str(me.get("notes") or "")]
+    text = ". ".join(t for t in [text, *extras] if t)
+    return text or None
+
+
+def _portrait(me: dict[str, Any]) -> Path | None:
+    """The photo of the person to show next to candidates, unless they turned that off."""
+    if me.get("photo_in_suggestions") is False or not me.get("photos"):
+        return None
+    return me["photos"][0]
+
+
 def _parse_day(value: str | None, today: date) -> date:
     if not value or value == "today":
         return today
@@ -359,11 +391,19 @@ def build_mcp(w: Wardrobe) -> MCPServer:
         last_worn = w.state.last_worn()
         cands = pick_candidates(items, weather, occasion, anchors, last_worn, target_day, temperature_bias(profile))
 
-        entries: list[tuple[str, Item]] = []
+        entries: list[tuple[str, Item | Path]] = []
         lines = [
             f"**Weather** — {weather.place} ({source}), {day} {weather.hours[0]:02d}–{weather.hours[1]:02d}: {weather.text()}",
             f"**Guidance** — {cands.targets.guidance()}",
         ]
+        me = w.catalog.me()
+        looks, portrait = describe_appearance(me), _portrait(me)
+        if looks or portrait:
+            lines.append(f"**You** — {looks or 'see the photo'}" + (" (photo tile \"You\")" if portrait else ""))
+            if portrait:
+                entries.append(("You", portrait))
+        else:
+            lines.append("**You** — appearance not saved yet (hair, eyes, skin help with colours; save with `update_appearance`).")
         if anchors:
             lines.append("**Already chosen** (photos A1…):")
             for n, a in enumerate(anchors, 1):
@@ -554,7 +594,51 @@ def build_mcp(w: Wardrobe) -> MCPServer:
         profile = w.catalog.profile()
         result["profile"] = {k: profile[k] for k in ("home", "style", "likes", "dislikes", "runs") if profile.get(k)}
         result["remembered_preferences"] = [p["text"] for p in w.state.prefs()]
+        result["appearance"] = describe_appearance(w.catalog.me())
         return json.dumps(result, ensure_ascii=False, indent=1)
+
+    # ------------------------------------------------------- about_me / update
+
+    @mcp.tool(title="About me", annotations=read_only)
+    async def about_me() -> CallToolResult:
+        """How the user looks: saved appearance and their photos. For colour and fit questions about them."""
+        me = w.catalog.me()
+        looks = describe_appearance(me)
+        photos = me.get("photos") or []
+        text = f"Appearance: {looks or 'not saved yet'}. {len(photos)} photo(s) of the user."
+        if not looks and not photos:
+            text += " Ask them (once) for hair colour, eye colour and skin tone, or to add a photo in the web UI or inbox."
+        content: list[Any] = [_text(text)]
+        for path in photos[:3]:
+            content.append(_image(w.renderer.thumbnail_jpeg(path, 768)))
+        return CallToolResult(content=content)
+
+    @mcp.tool(title="Update my appearance", annotations=writes)
+    async def update_appearance(
+        hair: Annotated[str | None, Field(description="e.g. 'blonde', 'dark brown, short'")] = None,
+        eyes: Annotated[str | None, Field(description="e.g. 'blue'")] = None,
+        skin: Annotated[str | None, Field(description="e.g. 'fair', 'light', 'olive', 'deep'")] = None,
+        undertone: Annotated[str | None, Field(description="'cool', 'warm' or 'neutral', if known")] = None,
+        height_cm: Annotated[int | None, Field(ge=100, le=250)] = None,
+        build: Annotated[str | None, Field(description="e.g. 'slim', 'athletic', 'broad shoulders'")] = None,
+        fit_notes: Annotated[str | None, Field(description="How clothes should fit them, e.g. 'regular fit, not skinny'")] = None,
+        notes: str | None = None,
+        photo_in_suggestions: Annotated[bool | None, Field(description="Send their photo along with outfit suggestions (default on).")] = None,
+        from_inbox: Annotated[list[str] | None, Field(description="Inbox photo filenames that show the user (they move into me/).")] = None,
+    ) -> str:
+        """Save how the user looks, so suggestions suit their colouring and build."""
+        fields = {k: v for k, v in {
+            "hair": hair, "eyes": eyes, "skin": skin, "undertone": undertone, "height_cm": height_cm, "build": build,
+            "fit_notes": fit_notes, "notes": notes, "photo_in_suggestions": photo_in_suggestions,
+        }.items() if v is not None}
+        photos: list[Path] = []
+        for filename in from_inbox or []:
+            path = w.catalog.inbox_dir / Path(filename).name
+            if not path.is_file() or path.suffix.lower() not in IMAGE_EXTS:
+                return f"No inbox photo called {filename!r}."
+            photos.append(path)
+        me = w.catalog.save_me(fields, add_photos=photos)
+        return f"Saved: {describe_appearance(me) or 'no details'}; {len(me['photos'])} photo(s)."
 
     # -------------------------------------------------------- remember / forget
 

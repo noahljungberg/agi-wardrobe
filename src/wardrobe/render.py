@@ -93,10 +93,11 @@ class Renderer:
 
     # ---------------------------------------------------------- contact sheet
 
-    def contact_sheet(self, entries: list[tuple[str, Item]], cols: int = 5, cell: int = 190) -> bytes:
+    def contact_sheet(self, entries: list[tuple[str, Item | Path]], cols: int = 5, cell: int = 190) -> bytes:
         """Numbered grid of item photos so the model can see candidates.
 
-        `entries` are (label, item); the label (e.g. '3') is drawn on the tile.
+        `entries` are (label, item); the label (e.g. '3') is drawn on the tile. An entry
+        can also be (label, photo path) for a photo of the person, captioned "You".
         """
         entries = entries[:40]
         rows = max(1, math.ceil(len(entries) / cols))
@@ -106,13 +107,15 @@ class Renderer:
         h = rows * (cell + caption_h + pad) + pad
         sheet = Image.new("RGB", (w, h), BG)
         draw = ImageDraw.Draw(sheet)
-        for idx, (label, item) in enumerate(entries):
+        for idx, (label, entry) in enumerate(entries):
             x = pad + (idx % cols) * (cell + pad)
             y = pad + (idx // cols) * (cell + caption_h + pad)
             draw.rectangle([x, y, x + cell, y + cell], fill=TILE)
-            if item.main_photo:
+            photo_path = entry if isinstance(entry, Path) else entry.main_photo
+            caption = "You" if isinstance(entry, Path) else entry.label()
+            if photo_path:
                 try:
-                    thumb = self.thumbnail(item.main_photo, cell - 10)
+                    thumb = self.thumbnail(photo_path, cell - 10)
                     sheet.paste(thumb, (x + (cell - thumb.width) // 2, y + (cell - thumb.height) // 2))
                 except Exception:
                     draw.text((x + 10, y + cell // 2), "photo error", fill=MUTED, font=font(14))
@@ -121,7 +124,7 @@ class Renderer:
             badge_w = 18 + 11 * len(label)
             draw.rounded_rectangle([x + 4, y + 4, x + 4 + badge_w, y + 30], radius=12, fill=ACCENT)
             draw.text((x + 4 + badge_w / 2, y + 17), label, fill=(255, 255, 255), font=font(18, "bold"), anchor="mm")
-            draw.text((x + 2, y + cell + 6), _fit(draw, item.label(), font(13), cell - 4), fill=INK, font=font(13))
+            draw.text((x + 2, y + cell + 6), _fit(draw, caption, font(13), cell - 4), fill=INK, font=font(13))
         buf = io.BytesIO()
         sheet.save(buf, "JPEG", quality=80)
         return buf.getvalue()

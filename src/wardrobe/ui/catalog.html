@@ -152,7 +152,18 @@
     padding: 10px 16px; border-radius: 12px; opacity: 0; transition: all .2s; z-index: 20; pointer-events: none; }
   .toast.on { opacity: 1; transform: translateX(-50%); }
 
+  .me { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.2fr); gap: 16px; align-items: start; }
+  .me-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .me-photo { position: relative; aspect-ratio: 3 / 4; border-radius: 14px; overflow: hidden; background: var(--tile); }
+  .me-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .me-photo .rm { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgb(255 255 255 / .9); color: #221f1c; }
+  .me-photo .first { position: absolute; left: 6px; bottom: 6px; white-space: nowrap; font-size: 10.5px; }
+  .me-add { aspect-ratio: 3 / 4; border-radius: 14px; border: 1.5px dashed #c9c1b6; display: grid; place-items: center; color: var(--muted); text-align: center; padding: 10px; cursor: pointer; }
+  .reads { background: var(--tile); color: #221f1c; border-radius: 12px; padding: 12px 14px; margin: 14px 0 0; font-size: 13.5px; }
+  .reads b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #7a716a; margin-bottom: 4px; }
+
   @media (max-width: 760px) {
+    .me { grid-template-columns: 1fr; }
     .app { grid-template-columns: 1fr; }
     aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 14px 16px 8px; }
     #nav { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
@@ -177,6 +188,7 @@
         <button data-view="grid" class="on">Wardrobe</button>
         <button data-view="insights">Insights</button>
         <button data-view="inbox">Inbox</button>
+        <button data-view="me">Me</button>
       </div>
       <label class="search">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -231,7 +243,7 @@
   const SLOTS = [["outerwear", "Outerwear"], ["mid", "Knits & layers"], ["base", "Tops & shirts"], ["bottoms", "Bottoms"],
                  ["shoes", "Shoes"], ["accessories", "Accessories"]];
   const STATUS_LABEL = { owned: "Owned", laundry: "Laundry", retired: "Retired", wishlist: "Wishlist" };
-  const S = { items: [], inbox: [], categories: [], view: "grid", filter: "available", q: "", analysis: null, open: null, photoIdx: 0 };
+  const S = { items: [], inbox: [], categories: [], view: "grid", filter: "available", q: "", analysis: null, open: null, photoIdx: 0, me: null };
   const $ = (sel, el = document) => el.querySelector(sel);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -397,7 +409,55 @@
           <label>Name<input name="name" required placeholder="What is it?"></label>
           <label>Category<select name="category">${cats}</select></label>
           <button class="btn primary small" type="submit">Create item</button>
+          <button class="btn small" type="button" data-me-inbox="${esc(name)}">It's a photo of me</button>
         </div></form>`).join("") + `</div>`;
+  }
+
+  // ---------------------------------------------------------------- me
+  function describe(m) {
+    const p = [];
+    if (m.hair) p.push(`${m.hair} hair`);
+    if (m.eyes) p.push(`${m.eyes} eyes`);
+    if (m.skin) p.push(`${m.skin} skin${m.undertone ? ` (${m.undertone} undertone)` : ""}`); else if (m.undertone) p.push(`${m.undertone} undertone`);
+    if (m.height_cm) p.push(`${m.height_cm} cm`);
+    if (m.build) p.push(`${m.build} build`);
+    return [p.join(", "), m.fit_notes ? `Fit: ${m.fit_notes}` : "", m.notes || ""].filter(Boolean).join(". ");
+  }
+  async function renderMe() {
+    if (!S.me) { $("#view").innerHTML = `<div class="empty-state">Loading…</div>`; S.me = await api("/ui/api/me"); }
+    const m = S.me, sel = (name, opts) => `<select name="${name}">${["", ...opts].map((o) => `<option value="${o}" ${o === (m[name] || "") ? "selected" : ""}>${o || "—"}</option>`).join("")}</select>`;
+    const photos = m.photos.map((name, n) => `<div class="me-photo"><img src="/ui/me/${encodeURIComponent(name)}/480?n=${n}">
+        <button class="rm" data-me-rm="${esc(name)}" title="Remove">✕</button>${n === 0 ? '<span class="pill first">Sent with suggestions</span>' : ""}</div>`).join("");
+    const on = m.photo_in_suggestions !== false;
+    $("#view").innerHTML = `<div class="me">
+      <div class="panel"><h3>Photos of you</h3>
+        <p class="sub">1–3 photos help the stylist judge colours and fit: a face photo in daylight, and one full-length. The first one is shown as a “You” tile next to the clothes it suggests.</p>
+        <div class="me-photos">${photos}<label class="me-add">+ Add photo<input type="file" accept="image/*" multiple hidden data-me-upload></label></div>
+        <label class="check" style="margin-top:14px;display:flex;gap:8px;align-items:center"><input type="checkbox" data-me-toggle ${on ? "checked" : ""}> Show my photo to the AI with outfit suggestions</label>
+        <p class="sub" style="margin-top:8px">Photos stay on your computer and are only sent to ChatGPT/Claude inside wardrobe answers, never as public links.</p>
+      </div>
+      <form class="panel" id="me-form"><h3>How you look</h3><p class="sub">Short words are enough. This is what the stylist reads every time.</p>
+        <div class="form">
+          <label>Hair<input name="hair" list="hair-l" value="${esc(m.hair || "")}" placeholder="blonde"></label>
+          <label>Eyes<input name="eyes" list="eyes-l" value="${esc(m.eyes || "")}" placeholder="blue"></label>
+          <label>Skin${sel("skin", ["fair", "light", "medium", "olive", "tan", "brown", "deep"])}</label>
+          <label>Undertone${sel("undertone", ["cool", "neutral", "warm"])}</label>
+          <label>Height (cm)<input name="height_cm" type="number" min="100" max="250" value="${esc(m.height_cm || "")}"></label>
+          <label>Build<input name="build" list="build-l" value="${esc(m.build || "")}" placeholder="slim, athletic…"></label>
+          <label class="full">How clothes should fit<input name="fit_notes" value="${esc(m.fit_notes || "")}" placeholder="regular fit, not skinny; trousers with a straight leg"></label>
+          <label class="full">Anything else<textarea name="notes" rows="2" placeholder="e.g. beard, glasses, tans easily in summer">${esc(m.notes || "")}</textarea></label>
+        </div>
+        <datalist id="hair-l"><option>blonde</option><option>light brown</option><option>dark brown</option><option>black</option><option>red</option><option>grey</option></datalist>
+        <datalist id="eyes-l"><option>blue</option><option>green</option><option>grey</option><option>hazel</option><option>brown</option></datalist>
+        <datalist id="build-l"><option>slim</option><option>athletic</option><option>average</option><option>broad</option><option>tall and slim</option></datalist>
+        <div class="reads"><b>The stylist reads</b><span id="me-reads">${esc(describe(m) || "Nothing yet")}</span></div>
+        <div class="row-acts"><button class="btn primary" type="submit">Save</button></div>
+      </form></div>`;
+  }
+  async function saveMe(form) {
+    const fd = new FormData(form);
+    const body = Object.fromEntries(["hair", "eyes", "skin", "undertone", "height_cm", "build", "fit_notes", "notes"].map((k) => [k, fd.get(k)]));
+    S.me = await api("/ui/api/me", { method: "PATCH", json: body }); renderMe(); toast("Saved");
   }
 
   // ---------------------------------------------------------------- drawer
@@ -510,7 +570,8 @@
     renderNav();
     document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.view === S.view));
     const inboxTab = $('#tabs [data-view="inbox"]'); inboxTab.textContent = S.inbox.length ? `Inbox (${S.inbox.length})` : "Inbox";
-    if (S.view === "grid") renderGrid(); else if (S.view === "insights") renderInsights(); else renderInbox();
+    if (S.view === "grid") renderGrid(); else if (S.view === "insights") renderInsights();
+    else if (S.view === "me") renderMe(); else renderInbox();
   }
   async function load() {
     const data = await api("/ui/api/items");
@@ -531,21 +592,35 @@
     if (t.dataset.save !== undefined) return saveDrawer().catch((err) => toast(err.message));
     if (t.dataset.copy) { await navigator.clipboard.writeText(t.dataset.copy).catch(() => {}); return toast("Copied. Paste it to your assistant"); }
     if (t.dataset.wish) return openAdd({ name: t.dataset.wish.replace(/^an? /, "").replace(/^\w/, (c) => c.toUpperCase()), status: "wishlist" });
+    if (t.dataset.meRm) { if (!confirm("Remove this photo?")) return; S.me = await api(`/ui/api/me/photos/${encodeURIComponent(t.dataset.meRm)}`, { method: "DELETE" }); renderMe(); return toast("Photo removed"); }
+    if (t.dataset.meInbox) { S.me = await api("/ui/api/me/from-inbox", { method: "POST", json: { name: t.dataset.meInbox } }); await load(); S.view = "me"; render(); return toast("Added to your photos"); }
     if (t.id === "add-btn" || t.id === "empty-add") return openAdd();
     if (t.dataset.mode) return setAddMode(t.dataset.mode);
   });
   document.addEventListener("change", async (e) => {
+    if (e.target.matches("[data-me-upload]") && e.target.files.length) {
+      const body = new FormData(); [...e.target.files].forEach((f, n) => body.append(`photo${n}`, f));
+      try { S.me = await api("/ui/api/me/photos", { method: "POST", body }); renderMe(); toast("Photo added"); } catch (err) { toast(err.message); }
+      return;
+    }
+    if (e.target.matches("[data-me-toggle]")) {
+      S.me = await api("/ui/api/me", { method: "PATCH", json: { photo_in_suggestions: e.target.checked } });
+      return toast(e.target.checked ? "Your photo will be shown with suggestions" : "Photo won't be sent with suggestions");
+    }
     if (e.target.matches("[data-upload]") && e.target.files.length) {
       try { const updated = await uploadPhotos(S.open, e.target.files); S.items = S.items.map((i) => (i.id === updated.id ? updated : i)); S.photoIdx = updated.photos - 1; render(); renderDrawer(); toast("Photo added"); }
       catch (err) { toast(err.message); }
     }
   });
   document.addEventListener("input", (e) => {
+    const meForm = e.target.closest("#me-form");
+    if (meForm) { const fd = new FormData(meForm); $("#me-reads").textContent = describe(Object.fromEntries(fd.entries())) || "Nothing yet"; }
     if (e.target.type === "range") { const v = document.querySelector(`.range-v[data-for="${e.target.name}"]`); if (v) v.textContent = e.target.value; }
   });
   document.addEventListener("submit", async (e) => {
     const form = e.target;
     if (form.id === "add-form") return submitAdd(e);
+    if (form.id === "me-form") { e.preventDefault(); return saveMe(form).catch((err) => toast(err.message)); }
     if (form.dataset.inbox) {
       e.preventDefault();
       try {

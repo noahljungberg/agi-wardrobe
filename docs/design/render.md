@@ -16,8 +16,8 @@ user has (EXIF rotation, PNG transparency, iPhone HEIC).
   - `thumbnail(path, size)`, `thumbnail_jpeg(path, size, quality)`: cached by
     path + mtime + size.
   - `data_uri(path, size=360)`
-  - `contact_sheet(entries: [(label, Item)], cols=5, cell=190) -> JPEG bytes`
-    (at most 40 entries)
+  - `contact_sheet(entries: [(label, Item | Path)], cols=5, cell=190) -> JPEG bytes`
+    (at most 40 entries; a `Path` entry is a photo of the user, captioned "You")
   - `collage(items, title, subtitle, note) -> Path` (under `cache/renders/`)
   - `scaled_jpeg(path, max_width, quality) -> bytes`
 - `font(size, weight)`: DejaVu or Noto if installed, else Pillow's default.

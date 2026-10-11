@@ -120,6 +120,26 @@ def test_import_and_analysis(tmp_path, demo_dir, monkeypatch):
     assert a["items_total"] == 17 and "coverage" in a
 
 
+def test_me_page_api(tmp_path, demo_dir):
+    client, w = make_client(tmp_path, demo_dir, WARDROBE_PASSPHRASE="correct horse")
+    assert client.get("/ui/api/me").status_code == 401
+    client.post("/ui/login", data={"passphrase": "correct horse"})
+    assert client.get("/ui/api/me").json() == {"photos": []}
+    assert client.patch("/ui/api/me", json={"hair": "blonde"}).status_code == 403  # no X-Wardrobe header
+    me = client.patch("/ui/api/me", json={"hair": "blonde", "eyes": "blue", "height_cm": "185", "bogus": 1}, headers=W).json()
+    assert me == {"hair": "blonde", "eyes": "blue", "height_cm": 185, "photos": []}
+    assert client.patch("/ui/api/me", json={"height_cm": 20}, headers=W).status_code == 400
+    me = client.post("/ui/api/me/photos", files={"photo": ("me.png", png_bytes(), "image/png")}, headers=W).json()
+    assert me["photos"] == ["1.jpg"]
+    assert client.get("/ui/me/1.jpg/480").headers["content-type"] == "image/jpeg"
+    assert client.get("/ui/me/..%2Fprofile.yaml/480").status_code == 404
+    (w.catalog.inbox_dir / "selfie.png").write_bytes(png_bytes())
+    assert client.post("/ui/api/me/from-inbox", json={"name": "selfie.png"}, headers=W).json()["photos"] == ["1.jpg", "2.png"]
+    assert client.delete("/ui/api/me/photos/1.jpg", headers=W).json()["photos"] == ["2.png"]
+    assert client.delete("/ui/api/me/photos/1.jpg", headers=W).status_code == 404
+    assert client.patch("/ui/api/me", json={"photo_in_suggestions": False}, headers=W).json()["photo_in_suggestions"] is False
+
+
 # ---------------------------------------------------------------- real browser
 
 CHROMIUM = os.environ.get("WARDROBE_CHROMIUM") or next(
@@ -165,6 +185,14 @@ async def test_browse_edit_and_add_in_a_browser(tmp_path, demo_dir):
             await page.click('[data-view="insights"]')
             await page.wait_for_selector(".gap")
             assert "What's missing" in await page.inner_text("#view")
+
+            await page.click('[data-view="me"]')
+            await page.fill('#me-form [name="hair"]', "blonde")
+            await page.fill('#me-form [name="eyes"]', "blue")
+            assert await page.inner_text("#me-reads") == "blonde hair, blue eyes"
+            await page.click('#me-form button[type="submit"]')
+            await page.wait_for_timeout(300)
+            assert w.catalog.me()["hair"] == "blonde"
             assert errors == []
             await browser.close()
     finally:

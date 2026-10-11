@@ -88,3 +88,9 @@ anything you can and then ask.
   Built the tailnet-only web UI at `:8443/ui` ([web-ui.md](../../design/web-ui.md)).
   It needed `favourite` (owner has shirts they like) and a `wishlist` status
   for gaps. Image-model pairing is deferred (known-issues ideas).
+- 2026-10-11: Owner wants the stylist to know how they look (eyes, hair matter
+  for colours). Added `me/` (about.yaml + photos), a "You" line and photo tile
+  in `dress_me`, the `about_me` and `update_appearance` tools, and the web UI
+  **Me** tab. The photo can be kept out of suggestions with
+  `photo_in_suggestions: false`. Owner to fill in: hair, eyes, a face photo and
+  a full-length photo.

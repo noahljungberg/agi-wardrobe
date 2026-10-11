@@ -20,7 +20,7 @@ catalog, the state DB, the renderer and the weather client.
 
 | Data | Owner | Where | Rules |
 |---|---|---|---|
-| Items, photos, profile | the user | `$WARDROBE_DIR` (items/, inbox/, profile.yaml) | Source of truth, hand-editable. Only `catalog.Catalog.save_item` writes it. |
+| Items, photos, profile, appearance | the user | `$WARDROBE_DIR` (items/, me/, inbox/, profile.yaml) | Source of truth, hand-editable. Only `catalog.Catalog.save_item` writes it. |
 | Wear log, preferences, last location, OAuth, render tokens | the server | `$WARDROBE_STATE_DIR/state.db` (SQLite) | Only `state.State` touches SQL. |
 | Thumbnails, collages | the server | `$WARDROBE_STATE_DIR/cache/` | Disposable; safe to delete. |
 

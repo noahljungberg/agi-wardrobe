@@ -5,8 +5,8 @@ Status: complete
 ## Purpose
 
 Owns the user's wardrobe folder (`$WARDROBE_DIR`): reading `items/<id>/item.yaml`
-plus photos into `Item` objects, `profile.yaml`, the `inbox/`, and every write
-to that folder. The folder is the source of truth and must stay hand-editable.
+plus photos into `Item` objects, `profile.yaml`, `me/` (how the user looks:
+`about.yaml` and photos), the `inbox/`, and every write to that folder. The folder is the source of truth and must stay hand-editable.
 The user-facing format is in [guides/wardrobe-folder.md](../guides/wardrobe-folder.md).
 
 ## Public API
@@ -31,6 +31,9 @@ The user-facing format is in [guides/wardrobe-folder.md](../guides/wardrobe-fold
   `wishlist`), `ACTIVE_STATUSES` (only `owned` is suggested), `FIELD_ORDER`
   (key order in written YAML).
 - `Item.favourite`: the `favourite: true` flag.
+- `me() -> dict`: the `APPEARANCE_FIELDS` from `me/about.yaml` plus `photos` (paths).
+  `save_me(fields, add_photos)` merges (None removes) and rejects unknown fields;
+  `remove_me_photo(name)` only accepts plain file names.
 
 ## Implementation files
 
@@ -55,7 +58,8 @@ The user-facing format is in [guides/wardrobe-folder.md](../guides/wardrobe-fold
 ## Tests
 
 - `tests/test_catalog.py`: inference on load, hand edits picked up, save with
-  inbox photo, broken YAML isolation, retired items hidden.
+  inbox photo, broken YAML isolation, retired items hidden; `me/` appearance
+  and photos.
 - Indirectly: every tool test uses the demo catalog.
 
 ## Non-goals

@@ -14,6 +14,9 @@ for things that are clumsy in chat:
   - things the catalogue is incomplete about ("To complete", "No photo").
 - **Fix things quickly**: status, favourite, details, aliases, photos; quick-add
   an item by name, or add one from a link or an inbox photo.
+- **Tell the stylist how you look** (Me tab): photos of you plus hair, eyes,
+  skin, undertone, height, build and fit notes, with a live preview of what the
+  AI reads and a switch for sending your photo with suggestions.
 - **Hand work to the assistant**: "Copy brief" / "Copy request" produce text to
   paste into ChatGPT/Claude, which then uses the MCP tools.
 
@@ -35,6 +38,9 @@ on the private app (`server.build_private_app`):
 | `POST /ui/api/import` | cookie + header | link import via `importer.import_url` |
 | `GET /ui/photo/{id}/{n}/{size}` | cookie | item photo thumbnail (240/480/960) |
 | `GET /ui/inbox/{name}/{size}` | cookie | inbox photo thumbnail |
+| `GET`/`PATCH /ui/api/me` | cookie (+ header for PATCH) | appearance fields (`APPEARANCE_FIELDS`; height 100–250 cm) and photo names |
+| `POST /ui/api/me/photos`, `POST /ui/api/me/from-inbox`, `DELETE /ui/api/me/photos/{name}` | cookie + header | add/remove photos of the user |
+| `GET /ui/me/{name}/{size}` | cookie | photo of the user (`no-store`) |
 
 Item JSON: `id, name, category, slot, status, favourite, rain_ok, aliases,
 needs_review, photos (count), wears, last_worn, guessed[]`, plus `brand type
@@ -83,6 +89,7 @@ when set.
   - edits write `item.yaml` (status, favourite, aliases); laundry items leave
     suggestions; invalid input is rejected; the CSRF header is required;
   - quick add, wishlist and review;
+  - the Me API: auth, CSRF, validation, photo upload, from inbox, delete, traversal;
   - photo upload/serve/bounds, inbox listing, inbox traversal rejected,
     create from an inbox photo;
   - import (importer mocked); analysis.
@@ -92,6 +99,7 @@ when set.
     "Available now";
   - quick add opens the new item;
   - Insights renders;
+  - the Me form previews and saves `me/about.yaml`;
   - no JS errors.
 
 ## Non-goals

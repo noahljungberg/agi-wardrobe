@@ -26,7 +26,7 @@ Last reviewed: 2026-10-09 (v0.1)
 | [importer](design/importer.md) | low | `test_importer.py` on Mango-/Zalando-shaped fixtures | **Live shop pages block datacenter IPs; never run from the home connection yet** |
 | [analysis](design/analysis.md) | medium | `test_analysis.py` | Compatibility rule is coarse (neutral/same colour) |
 | [auth](design/auth.md) | high | Full OAuth flow over real HTTP in `test_http.py`, both DCR and CIMD (Claude's default) | Real ChatGPT/Claude clients not yet connected |
-| [mcp tools](design/mcp-tools.md) | high | `test_server.py` in-process + over HTTP | Model behaviour with these tools is untested on real chats |
+| [mcp tools](design/mcp-tools.md) | high | `test_server.py` in-process + over HTTP, incl. appearance ("You" tile, `about_me`) | Model behaviour with these tools is untested on real chats |
 | [http api](design/http-api.md) | high | `test_http.py` | Tailscale Funnel's Host-header behaviour assumed, not observed |
 | [web ui](design/web-ui.md) | medium | `test_webui.py`: API, auth, CSRF, traversal and a Chromium run (browse, edit, add, insights) | Not yet used on the owner's machine; gap rules are simple heuristics |
 | [cli/config/deploy](design/cli-config.md) | high | Config tested through fixtures; `serve` start/SIGTERM checked by hand | systemd unit not yet run on the Arch machine |

@@ -28,7 +28,7 @@ from starlette.routing import Route
 
 from wardrobe import importer
 from wardrobe.analysis import analyse
-from wardrobe.catalog import CATEGORIES, IMAGE_EXTS, STATUSES, Catalog, Item
+from wardrobe.catalog import APPEARANCE_FIELDS, CATEGORIES, IMAGE_EXTS, STATUSES, Catalog, Item
 from wardrobe.config import Config
 from wardrobe.outfit import slot_of
 from wardrobe.render import Renderer
@@ -251,6 +251,91 @@ class WebUI:
         return JSONResponse({"item": self.item_json(result.item, {}, {}), "existing": result.existing,
                              "warning": result.error})
 
+    # ------------------------------------------------------------ me
+
+    def me_json(self) -> dict[str, Any]:
+        me = self.catalog.me()
+        return {**{k: v for k, v in me.items() if k != "photos"}, "photos": [p.name for p in me["photos"]]}
+
+    async def get_me(self, request: Request) -> Response:
+        if denied := self._guard(request):
+            return denied
+        return JSONResponse(self.me_json())
+
+    async def update_me(self, request: Request) -> Response:
+        if denied := self._guard(request, write=True):
+            return denied
+        body = await _json(request)
+        fields: dict[str, Any] = {}
+        for key in APPEARANCE_FIELDS:
+            if key not in body:
+                continue
+            value = body[key]
+            if value is None or value == "":
+                fields[key] = None
+            elif key == "photo_in_suggestions":
+                fields[key] = bool(value)
+            elif key == "height_cm":
+                try:
+                    fields[key] = int(value)
+                except (TypeError, ValueError):
+                    return JSONResponse({"error": "height must be a number (cm)"}, status_code=400)
+                if not 100 <= fields[key] <= 250:
+                    return JSONResponse({"error": "height must be 100–250 cm"}, status_code=400)
+            else:
+                fields[key] = str(value).strip()[:300]
+        self.catalog.save_me(fields)
+        return JSONResponse(self.me_json())
+
+    async def upload_me_photo(self, request: Request) -> Response:
+        if denied := self._guard(request, write=True):
+            return denied
+        form = await request.form(max_part_size=40 * 1024 * 1024)
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = []
+            for n, (_key, value) in enumerate(form.multi_items(), 1):
+                if not hasattr(value, "read"):
+                    continue
+                try:
+                    jpeg = importer.image_bytes_to_jpeg(await value.read())
+                except Exception:
+                    return JSONResponse({"error": "not an image"}, status_code=400)
+                path = Path(tmp) / f"me-{n}.jpg"
+                path.write_bytes(jpeg)
+                paths.append(path)
+            if not paths:
+                return JSONResponse({"error": "no image received"}, status_code=400)
+            self.catalog.save_me({}, add_photos=paths)
+        return JSONResponse(self.me_json())
+
+    async def me_from_inbox(self, request: Request) -> Response:
+        if denied := self._guard(request, write=True):
+            return denied
+        name = str((await _json(request)).get("name") or "")
+        path = self.catalog.inbox_dir / name
+        if not SAFE_NAME.match(name) or not path.is_file():
+            return JSONResponse({"error": f"no inbox photo {name!r}"}, status_code=400)
+        self.catalog.save_me({}, add_photos=[path])
+        return JSONResponse(self.me_json())
+
+    async def delete_me_photo(self, request: Request) -> Response:
+        if denied := self._guard(request, write=True):
+            return denied
+        name = request.path_params["name"]
+        if not SAFE_NAME.match(name) or not self.catalog.remove_me_photo(name):
+            return JSONResponse({"error": "no such photo"}, status_code=404)
+        return JSONResponse(self.me_json())
+
+    async def me_photo(self, request: Request) -> Response:
+        if denied := self._guard(request):
+            return denied
+        name, size = request.path_params["name"], request.path_params["size"]
+        path = self.catalog.me_dir / name
+        if not SAFE_NAME.match(name) or size not in PHOTO_SIZES or not path.is_file() or path.suffix.lower() not in IMAGE_EXTS:
+            return Response(status_code=404)
+        return Response(self.renderer.thumbnail_jpeg(path, size, 85), media_type="image/jpeg",
+                        headers={"Cache-Control": "private, no-store"})
+
     def routes(self) -> list[Route]:
         return [
             Route("/", lambda request: RedirectResponse("/ui"), methods=["GET"]),
@@ -265,6 +350,12 @@ class WebUI:
             Route("/ui/api/import", self.import_link, methods=["POST"]),
             Route("/ui/photo/{item_id}/{n:int}/{size:int}", self.photo, methods=["GET"]),
             Route("/ui/inbox/{name}/{size:int}", self.inbox_photo, methods=["GET"]),
+            Route("/ui/api/me", self.get_me, methods=["GET"]),
+            Route("/ui/api/me", self.update_me, methods=["PATCH"]),
+            Route("/ui/api/me/photos", self.upload_me_photo, methods=["POST"]),
+            Route("/ui/api/me/from-inbox", self.me_from_inbox, methods=["POST"]),
+            Route("/ui/api/me/photos/{name}", self.delete_me_photo, methods=["DELETE"]),
+            Route("/ui/me/{name}/{size:int}", self.me_photo, methods=["GET"]),
         ]
 
 

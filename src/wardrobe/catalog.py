@@ -25,6 +25,12 @@ ACTIVE_STATUSES = {"owned", "", None}
 # retired = gone (sold, returned, worn out); wishlist = not owned yet (a gap to fill).
 STATUSES = ("owned", "laundry", "retired", "wishlist")
 
+# me/about.yaml: what the stylist should know about how you look. Free text values;
+# photo_in_suggestions (default true) controls whether a photo of you is sent along
+# with outfit suggestions.
+APPEARANCE_FIELDS = ("hair", "eyes", "skin", "undertone", "height_cm", "build", "fit_notes", "notes",
+                     "photo_in_suggestions")
+
 # Order in which item.yaml keys are written, for readable files.
 FIELD_ORDER = [
     "name", "brand", "aliases", "category", "type", "layer", "colour", "pattern", "material", "composition",
@@ -141,6 +147,7 @@ class Catalog:
         self.root = root
         self.items_dir = root / "items"
         self.inbox_dir = root / "inbox"
+        self.me_dir = root / "me"
         self.refresh_interval = refresh_interval
         self._lock = threading.RLock()
         self._items: dict[str, Item] = {}
@@ -214,6 +221,56 @@ class Catalog:
         self.refresh()
         with self._lock:
             return dict(self._profile)
+
+    def me(self) -> dict[str, Any]:
+        """About you: appearance fields from me/about.yaml plus `photos` (paths)."""
+        about: dict[str, Any] = {}
+        path = self.me_dir / "about.yaml"
+        if path.exists():
+            try:
+                loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+                about = {k: v for k, v in loaded.items() if k in APPEARANCE_FIELDS} if isinstance(loaded, dict) else {}
+            except yaml.YAMLError:
+                about = {}
+        photos = []
+        if self.me_dir.is_dir():
+            photos = sorted((p for p in self.me_dir.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_EXTS), key=_natural_key)
+        return {**about, "photos": photos}
+
+    def save_me(self, fields: dict[str, Any], add_photos: list[Path] | None = None, move_photos: bool = True) -> dict[str, Any]:
+        """Merge appearance fields (None removes one) and add photos to me/."""
+        unknown = set(fields) - set(APPEARANCE_FIELDS)
+        if unknown:
+            raise ValueError(f"unknown appearance fields: {', '.join(sorted(unknown))}")
+        with self._lock:
+            self.me_dir.mkdir(parents=True, exist_ok=True)
+            path = self.me_dir / "about.yaml"
+            data = {k: v for k, v in self.me().items() if k != "photos"}
+            for key, value in fields.items():
+                if value is None or value == "":
+                    data.pop(key, None)
+                else:
+                    data[key] = value
+            ordered = {k: data[k] for k in APPEARANCE_FIELDS if k in data}
+            tmp = path.with_suffix(".yaml.tmp")
+            tmp.write_text(yaml.safe_dump(ordered, sort_keys=False, allow_unicode=True), encoding="utf-8")
+            tmp.replace(path)
+            n = len(self.me()["photos"]) + 1
+            for src in add_photos or []:
+                dest = _free_photo_path(self.me_dir, n, src.suffix.lower())
+                if move_photos:
+                    shutil.move(str(src), dest)
+                else:
+                    shutil.copyfile(src, dest)
+                n += 1
+        return self.me()
+
+    def remove_me_photo(self, name: str) -> bool:
+        path = self.me_dir / Path(name).name
+        if path.parent != self.me_dir or not path.is_file() or path.suffix.lower() not in IMAGE_EXTS:
+            return False
+        path.unlink()
+        return True
 
     def inbox_files(self) -> list[Path]:
         if not self.inbox_dir.is_dir():

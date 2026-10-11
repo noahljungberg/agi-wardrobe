@@ -47,3 +47,19 @@ def test_retired_items_hidden(demo_dir):
     cat.save_item("acne-wool-scarf-charcoal", {"status": "retired"})
     assert "acne-wool-scarf-charcoal" not in {i.id for i in cat.items()}
     assert "acne-wool-scarf-charcoal" in {i.id for i in cat.items(include_inactive=True)}
+
+
+def test_me_appearance_and_photos(demo_dir):
+    import pytest
+
+    cat = Catalog(demo_dir)
+    assert cat.me() == {"photos": []}
+    photo = demo_dir / "inbox" / "selfie.jpg"
+    photo.write_bytes((demo_dir / "items/nubikk-leather-sneakers-white/1.jpg").read_bytes())
+    me = cat.save_me({"hair": "blonde", "eyes": "blue"}, add_photos=[photo])
+    assert me["hair"] == "blonde" and [p.name for p in me["photos"]] == ["1.jpg"] and not photo.exists()
+    assert "eyes" not in cat.save_me({"eyes": None})
+    with pytest.raises(ValueError):
+        cat.save_me({"shoe_size": 43})
+    assert not cat.remove_me_photo("../profile.yaml")
+    assert cat.remove_me_photo("1.jpg") and cat.me()["photos"] == []

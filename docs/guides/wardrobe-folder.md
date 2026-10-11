@@ -13,6 +13,9 @@ wardrobe/
 │   └── levis-hilltop-jacket/
 │       ├── item.yaml
 │       └── 1.jpg
+├── me/                    ← how you look (for the stylist)
+│   ├── about.yaml
+│   └── 1.jpg              ← first photo is shown next to suggestions
 ├── inbox/                 ← new photos waiting to become items
 └── profile.yaml           ← about you (optional)
 ```
@@ -60,6 +63,30 @@ style: >
 likes: [corduroy, knitwear]
 dislikes: [skinny fits, logos]
 ```
+
+## me/: how you look
+
+Your colouring and build matter for styling: which colours flatter you near
+your face, and which fits suit you. Save this once in the web UI's **Me**
+tab, or just tell the assistant ("I have blonde hair and blue eyes").
+
+```yaml
+# me/about.yaml
+hair: blonde
+eyes: blue
+skin: fair               # fair | light | medium | olive | tan | brown | deep
+undertone: cool          # cool | neutral | warm (if you know it)
+height_cm: 185
+build: slim
+fit_notes: regular fit, not skinny
+notes: short beard
+photo_in_suggestions: true   # send your first photo along with outfit suggestions
+```
+
+Photos of you go in `me/` as well: one face photo in daylight and one
+full-length. They're only sent to ChatGPT/Claude inside wardrobe answers,
+never through a public link. Set `photo_in_suggestions: false` to keep the
+photo out of everyday suggestions (`about_me` still uses it when you ask).
 
 ## Adding things
 

@@ -15,7 +15,7 @@ most one question).
 
 | Tool | R/O | Inputs | Returns |
 |---|---|---|---|
-| `dress_me` | yes | `wearing[]?`, `occasion?`, `place?`, `day` today/tomorrow | Weather + source, guidance, anchors (A1…), candidates per slot (#1…), profile, preferences, recent outfits; **contact sheet image** |
+| `dress_me` | yes | `wearing[]?`, `occasion?`, `place?`, `day` today/tomorrow | Weather + source, guidance, **You** (appearance), anchors (A1…), candidates per slot (#1…), profile, preferences, recent outfits; **contact sheet image** with a "You" tile first when the user has a photo and `photo_in_suggestions` isn't false |
 | `show_outfit` | yes | `item_ids[]`, `title?`, `note?`, `day` | Text with collage link, collage image (640 px), `structuredContent` for the card, `_meta.wardrobe/thumbs`; bound to `ui://wardrobe/outfit-v2.html` |
 | `log_wear` | no | `items[]` (ids or phrases), `day` today/yesterday/ISO, `note?` | Confirmation; ambiguous phrases are listed, not logged |
 | `find_items` | yes | `query`, `category?`, `include_retired` | Up to 40 matches with wear stats; contact sheet |
@@ -26,6 +26,8 @@ most one question).
 | `remember` | no | `note` | Preference id |
 | `forget` | no (destructive) | `pref_id` | Confirmation |
 | `set_location` | no | `place` | Confirmation (geocoded) |
+| `about_me` | yes | none | Appearance text + up to 3 photos of the user (768 px) |
+| `update_appearance` | no | `hair? eyes? skin? undertone? height_cm? build? fit_notes? notes? photo_in_suggestions?`, `from_inbox[]` | Confirmation with the saved description |
 
 `Wardrobe` service (`Wardrobe(config, weather=None)`):
 
@@ -37,6 +39,9 @@ most one question).
 - `day_weather(place, which)`: returns `None` on failure (callers degrade).
 - `item_image_url(item)` (HMAC-signed, 7 days), `verify_image`, `render_url(path)`.
 - `build_mcp(w) -> MCPServer`
+- `describe_appearance(me) -> str | None` ("blonde hair, blue eyes, fair skin (cool undertone), …"),
+  used by `dress_me`, `about_me` and `wardrobe_analysis`. `_portrait(me)` picks the photo for the
+  "You" tile.
 
 ## Implementation files
 
@@ -69,8 +74,11 @@ most one question).
   anchors, no location), `show_outfit` payloads, logging and ambiguity, inbox
   → `save_item`, preferences, analysis, `set_location`, geocoder outage.
 - `tests/test_http.py`: the same tools over real HTTP with OAuth.
+- `tests/test_server.py::test_appearance_reaches_the_stylist`: no appearance → hint; saved
+  description and the "You" tile in `dress_me`; `about_me` photos; the photo toggle; analysis.
 
 ## Non-goals
 
 - No MCP prompts or resources other than the card.
+- No face or appearance analysis on the server: the chat model looks at the photos itself.
 - No sampling or elicitation: the chat model drives the conversation.
