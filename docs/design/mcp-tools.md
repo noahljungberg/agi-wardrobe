@@ -10,13 +10,23 @@ The surface the chat model sees: server instructions plus 11 tools. Also the
 ## Public API
 
 Server instructions: `INSTRUCTIONS` in `server.py` (how to behave: call
-`dress_me` first, always `show_outfit`, log silently, phone-short replies, at
-most one question).
+`dress_me` first, then `show_outfit` using active owned ids; compact rationale
+plus one practical adjustment; at most one focused question). Attraction-related
+goals are individualized from user preferences and feedback, not universal claims
+about women or promises. Photos describe garments, not the wearer's fit; height
+and weight do not establish measurements. Shoe-lift compatibility stays unknown
+unless confirmed. Missing photos are permitted without inventing visual details.
+
+`log_wear` is called for explicit reports of what the user is wearing or wore,
+not a bare "ok", liking a suggestion or a future plan. `remember` remains the
+existing mechanism for user-confirmed context. How the user looks is the one
+structured profile: `me/` via `update_appearance` and `about_me` (added on the owner's
+request, 2026-10-11).
 
 | Tool | R/O | Inputs | Returns |
 |---|---|---|---|
-| `dress_me` | yes | `wearing[]?`, `occasion?`, `place?`, `day` today/tomorrow | Weather + source, guidance, **You** (appearance), anchors (A1…), candidates per slot (#1…), profile, preferences, recent outfits; **contact sheet image** with a "You" tile first when the user has a photo and `photo_in_suggestions` isn't false |
-| `show_outfit` | yes | `item_ids[]`, `title?`, `note?`, `day` | Text with collage link, collage image (640 px), `structuredContent` for the card, `_meta.wardrobe/thumbs`; bound to `ui://wardrobe/outfit-v2.html` |
+| `dress_me` | yes | `wearing[]?`, `occasion?`, `place?`, `day` today/tomorrow | Local time/timezone, target day, forecast date + weather/source (or unavailable warning), guidance, **You** (saved appearance), anchors (A1…), candidates per slot (#1…), profile, preferences, recent outfits; **contact sheet image** with a "You" tile first when the user has a photo and `photo_in_suggestions` isn't false |
+| `show_outfit` | yes | `item_ids[]`, `title?`, `note?`, `day` | Active items only; text with collage link, collage image (640 px), `structuredContent` for the card, `_meta.wardrobe/thumbs`; bound to `ui://wardrobe/outfit-v2.html` |
 | `log_wear` | no | `items[]` (ids or phrases), `day` today/yesterday/ISO, `note?` | Confirmation; ambiguous phrases are listed, not logged |
 | `find_items` | yes | `query`, `category?`, `include_retired` | Up to 40 matches with wear stats; contact sheet |
 | `save_item` | no | `item_id?` + any item fields, `status` (owned/laundry/retired/wishlist), `favourite`, `from_inbox[]` | Saved summary + photo; clears `needs_review` |
@@ -62,6 +72,24 @@ most one question).
 - `readOnlyHint` must be honest. ChatGPT asks for confirmation on every write
   tool, so keep writes few and obvious.
 - Tool text is compact and puts ids in backticks; one image per result.
+- `_item_line` includes size (40 characters) and notes/caveats (360 characters)
+  as whitespace-normalized JSON, explicitly labelled DATA, not instructions.
+  Truncation is marked with an ellipsis; this is a compact preview, not sanitizing
+  or verifying the contents. No-photo and needs-review flags stay visible.
+- `dress_me` reports current local time and timezone from the resolved location,
+  plus target day and actual forecast date. Missing/invalid timezones are marked
+  unknown rather than guessed. Explicit event time/place take precedence; the
+  clock is not evidence of the occasion. If the occasion is omitted, ask before
+  finalizing, without asking again when it was already given. Unknown location
+  is clarified first; keep at most one question per reply.
+- Ambiguous or unknown anchors require clarification before finalizing, never
+  a silent most-likely choice. Only confirmed anchors are shown as chosen.
+- If weather is unavailable, `_neutral_weather` remains an internal ranking
+  default only. Do not display its invented temperatures, dry conditions or
+  computed layer guidance. Candidates are not weather-validated; the response
+  states uncertainty and asks for a conditional layer adjustment.
+- `show_outfit` resolves active items only; historical `log_wear` may still use
+  inactive items. This does not change ranking, availability rules or tool schemas.
 - User mistakes come back as text or `is_error`, never as exceptions
   ([CONVENTIONS.md](../../CONVENTIONS.md)).
 - `check_docs.py` fails if a tool in `server.py` is missing from the table
@@ -72,7 +100,12 @@ most one question).
 - `tests/test_server.py`: in-process `Client(build_mcp(w))` with
   `FakeWeather`: tool list and annotations, `dress_me` (home/phone location,
   anchors, no location), `show_outfit` payloads, logging and ambiguity, inbox
-  → `save_item`, preferences, analysis, `set_location`, geocoder outage.
+  → `save_item`, preferences, analysis, `set_location`, geocoder outage,
+  unavailable weather without synthetic forecast text, ambiguous-anchor
+  clarification, compact note/size data, no-photo outfits, inactive-item exclusion,
+  local time/target day, unknown timezones, missing occasion
+  and the server instruction evidence contract. These are output/contract tests,
+  not proof that every connected model follows the instructions.
 - `tests/test_http.py`: the same tools over real HTTP with OAuth.
 - `tests/test_server.py::test_appearance_reaches_the_stylist`: no appearance → hint; saved
   description and the "You" tile in `dress_me`; `about_me` photos; the photo toggle; analysis.

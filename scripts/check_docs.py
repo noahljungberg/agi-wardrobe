@@ -100,9 +100,12 @@ def check() -> list[str]:
     for md in markdown_files():
         text = md.read_text(encoding="utf-8")
         text = re.sub(r"```.*?```", "", text, flags=re.S)  # ignore code blocks
-        for target in re.findall(r"\]\(([^)\s]+)\)", text):
+        for target in re.findall(r"\]\((<[^>]+>|[^)\s]+)\)", text):
+            target = target.strip("<>")  # CommonMark allows <...> link destinations
             if re.match(r"^[a-z]+:", target) or target.startswith("#"):
                 continue
+            if "/" not in target and "." not in target:
+                continue  # a placeholder in an example (e.g. "(returned-url)"), not a path
             path = (md.parent / target.split("#")[0]).resolve()
             if not path.exists():
                 problems.append(f"{md.relative_to(ROOT)}: broken link -> {target}")
