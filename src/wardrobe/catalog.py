@@ -21,12 +21,15 @@ from wardrobe.heuristics import CATEGORIES, canonical_colour, fold, infer, layer
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 ACTIVE_STATUSES = {"owned", "", None}
+# owned = in the wardrobe and available; laundry = owned but temporarily out;
+# retired = gone (sold, returned, worn out); wishlist = not owned yet (a gap to fill).
+STATUSES = ("owned", "laundry", "retired", "wishlist")
 
 # Order in which item.yaml keys are written, for readable files.
 FIELD_ORDER = [
     "name", "brand", "aliases", "category", "type", "layer", "colour", "pattern", "material", "composition",
     "warmth", "formality", "rain_ok", "size", "bought", "price", "currency", "source_url",
-    "status", "needs_review", "notes",
+    "status", "favourite", "needs_review", "notes",
 ]
 
 
@@ -79,6 +82,10 @@ class Item:
         return str(self.get("status", "owned"))
 
     @property
+    def favourite(self) -> bool:
+        return bool(self.get("favourite", False))
+
+    @property
     def active(self) -> bool:
         return self.status in ACTIVE_STATUSES
 
@@ -107,6 +114,8 @@ class Item:
             out["no_photo"] = True
         if self.get("needs_review"):
             out["needs_review"] = True
+        if self.favourite:
+            out["favourite"] = True
         return out
 
 

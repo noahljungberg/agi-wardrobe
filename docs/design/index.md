@@ -22,6 +22,7 @@ Status: complete
 | OAuth | [auth.md](auth.md) | `auth.py` | complete | high |
 | MCP tools & `Wardrobe` service | [mcp-tools.md](mcp-tools.md) | `server.py` (tools) | complete | high |
 | HTTP apps & routes | [http-api.md](http-api.md) | `server.py` (apps, routes) | complete | high |
+| Web UI (browser) | [web-ui.md](web-ui.md) | `webui.py`, `ui/catalog.html` | complete | medium |
 | CLI, config, demo, deploy | [cli-config.md](cli-config.md) | `cli.py`, `config.py`, `demo.py`, `__main__.py`, `deploy/` | complete | high |
 
 ## Which doc for which task
@@ -35,4 +36,5 @@ Status: complete
 | "Add a tool" | [mcp-tools.md](mcp-tools.md) and the `add-mcp-tool` skill |
 | "The card looks wrong in ChatGPT/Claude" | [outfit-card.md](outfit-card.md) |
 | "ChatGPT can't connect / login fails" | [auth.md](auth.md), [http-api.md](http-api.md), [guides/setup.md](../guides/setup.md) |
+| "Show/edit the wardrobe in a browser", "the catalogue page" | [web-ui.md](web-ui.md) |
 | "Location is stale" | [http-api.md](http-api.md) (`/location`), [guides/shortcuts.md](../guides/shortcuts.md) |

@@ -19,16 +19,17 @@ LAYERS: dict[str, int] = {
     "catalog": 1,
     "matching": 2, "outfit": 2, "render": 2,
     "analysis": 3, "importer": 3, "auth": 3, "demo": 3,
-    "server": 4,
-    "cli": 5,
-    "__main__": 6,
+    "webui": 4,
+    "server": 5,
+    "cli": 6,
+    "__main__": 7,
 }
 
 # Third-party packages and the only modules allowed to import them.
 THIRD_PARTY: dict[str, set[str]] = {
     "mcp": {"server", "auth"},
     "mcp_types": {"server"},
-    "starlette": {"server", "auth"},
+    "starlette": {"server", "auth", "webui"},
     "uvicorn": {"cli"},
     "pydantic": {"server", "auth"},
     "httpx": {"weather", "importer", "auth", "server"},

@@ -9,7 +9,8 @@ ChatGPT/Claude ──► :443 ─► 127.0.0.1:8765  public app     iPhone Short
                            ├─ /mcp            MCP (OAuth)                           ├─ /location
                            ├─ /authorize /token /register /login                    ├─ /import
                            └─ /img/r/* /img/i/*  images                             ├─ /inbox
-                                                                                    └─ /health
+                                                                                    ├─ /health
+                                                                                    └─ /ui  browser UI (cookie login)
 ```
 
 Both apps share one `Wardrobe` service object (`server.py`), which holds the
@@ -35,9 +36,10 @@ A module may import only from **strictly lower** layers.
 | 1 Model | `catalog` | The wardrobe folder as `Item` objects. |
 | 2 Domain | `matching`, `outfit`, `render` | Pure-ish logic on items: fuzzy resolve, slot/weather scoring, images. |
 | 3 Features | `analysis`, `importer`, `auth`, `demo` | Built from the domain: gap stats, link import, OAuth provider, demo data. |
-| 4 App | `server` | MCP tools, HTTP routes, the `Wardrobe` service. The only place that composes everything. |
-| 5 Entry | `cli` | Argument parsing, uvicorn, wiring config → server. |
-| 6 Entry | `__main__` | `python -m wardrobe`. |
+| 4 Surfaces | `webui` | The browser UI and its JSON API, built from injected catalog/state/renderer. |
+| 5 App | `server` | MCP tools, HTTP routes, the `Wardrobe` service. The only place that composes everything. |
+| 6 Entry | `cli` | Argument parsing, uvicorn, wiring config → server. |
+| 7 Entry | `__main__` | `python -m wardrobe`. |
 
 ```
 cli ─► server ─┬─► analysis ─► outfit ─► weather
@@ -54,7 +56,8 @@ Also enforced by `scripts/check_architecture.py` (`THIRD_PARTY`).
 
 | Package | Allowed in | Why |
 |---|---|---|
-| `mcp`, `starlette` | `server`, `auth` | Protocol and HTTP stay at the edge; domain code is testable without them. |
+| `mcp` | `server`, `auth` | Protocol stays at the edge; domain code is testable without it. |
+| `starlette` | `server`, `auth`, `webui` | HTTP stays at the edge. |
 | `mcp_types` | `server` | Tool schemas and results. |
 | `pydantic` | `server`, `auth` | Tool parameter schemas; validating client metadata documents. |
 | `uvicorn` | `cli` | Process concerns only. |

@@ -27,7 +27,10 @@ The user-facing format is in [guides/wardrobe-folder.md](../guides/wardrobe-fold
     status active aliases main_photo`
   - `label()`: "Mango Corduroy trousers (beige)"; `summary()`: compact dict for tool output.
 - `load_item(folder)`, `write_item_yaml(path, data)`, `slugify(text)`.
-- Constants: `IMAGE_EXTS`, `ACTIVE_STATUSES`, `FIELD_ORDER` (key order in written YAML).
+- Constants: `IMAGE_EXTS`, `STATUSES` (`owned`, `laundry`, `retired`,
+  `wishlist`), `ACTIVE_STATUSES` (only `owned` is suggested), `FIELD_ORDER`
+  (key order in written YAML).
+- `Item.favourite`: the `favourite: true` flag.
 
 ## Implementation files
 

@@ -11,6 +11,9 @@ outfit").
 
 ## Principles
 
+0. **Chat first, browser for overview.** Daily use happens in the chat app.
+   A tailnet-only browser page ([web-ui.md](web-ui.md)) is for browsing and
+   tidying the catalogue on a computer (added on request, 2026-10-11).
 1. **Zero daily effort.** Nothing is required of you day to day. You ask when you want something.
 2. **Pictures first.** Every item has at least one photo. The AI *looks* at the
    clothes when styling, and you see the outfit as an image.

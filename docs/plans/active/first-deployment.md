@@ -49,6 +49,12 @@ anything you can and then ask.
   - Acceptance: thresholds changed only with a test row per change; QUALITY
     updated.
 
+- [ ] 9. 👤 **Web UI on the computer** ([guides/setup.md](../../guides/setup.md) §8):
+  open `https://<machine>.<tailnet>.ts.net:8443/ui`, log in, mark favourites,
+  quick-add the shirts and other items that are missing from the catalogue.
+  - Acceptance: the "To complete" count reaches 0 (with the assistant's help via
+    "Copy brief"); feedback on the UI recorded below.
+
 ## Decision log
 
 - 2026-10-09: The display method on iPhone is unknown, so `show_outfit`
@@ -77,3 +83,8 @@ anything you can and then ask.
   test. The model also embedded the collage as an image (grey box), so the
   instructions now say link only. Next: pull, restart, re-check the card
   (task 4).
+- 2026-10-11: Owner asked for a browser view of the whole catalogue (what's
+  available, what's missing, quick manual adds, then let the agent finish).
+  Built the tailnet-only web UI at `:8443/ui` ([web-ui.md](../../design/web-ui.md)).
+  It needed `favourite` (owner has shirts they like) and a `wishlist` status
+  for gaps. Image-model pairing is deferred (known-issues ideas).

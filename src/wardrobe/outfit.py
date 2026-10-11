@@ -147,6 +147,8 @@ def score(item: Item, slot: str, t: Targets, today: date, last_worn: dict[str, d
         s += 0.3
     if t.formality and item.formality is not None:
         s -= 0.12 * abs(item.formality - t.formality)
+    if item.favourite:
+        s += 0.05  # a nudge, not a takeover: weather and recency still decide
     worn = last_worn.get(item.id)
     if worn is not None:
         days = (today - worn).days

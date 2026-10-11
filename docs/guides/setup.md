@@ -167,7 +167,26 @@ server is the same.
 
 The connector then shows up in the Claude iPhone app as well.
 
-## 8. iPhone Shortcuts
+## 8. Browse your wardrobe on the computer
+
+On any computer that's on your tailnet, open:
+
+```
+https://<machine>.<tailnet>.ts.net:8443/ui
+```
+
+Log in with your `WARDROBE_PASSPHRASE`. You can then:
+
+- browse everything with photos;
+- filter what's available, in the laundry, retired or on the wishlist;
+- see **what's missing** (Insights) and what still needs a photo or details;
+- quick-add things you own but haven't catalogued;
+- mark favourites.
+
+"Copy brief" gives you text to paste into ChatGPT or Claude, so the assistant
+completes the items for you.
+
+## 9. iPhone Shortcuts
 
 See [shortcuts.md](shortcuts.md):
 

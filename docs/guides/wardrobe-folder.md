@@ -41,7 +41,8 @@ bought: 2026-01-23
 price: 419
 currency: SEK
 source_url: https://shop.mango.com/...
-status: owned         # owned | retired (gone) | laundry (temporarily out)
+status: owned         # owned | laundry (temporarily out) | retired (gone) | wishlist (want to buy)
+favourite: true       # one you especially like; suggested a little more often
 needs_review: true    # set by the importer; cleared when you or the assistant confirm
 notes: ""
 ```

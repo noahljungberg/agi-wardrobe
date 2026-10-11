@@ -70,6 +70,8 @@ component.
   there must be protected by a random token (`/img/r/`) or an HMAC signature
   (`/img/i/`).
 - Private-app handlers start with `if not authorised(request): return 401`.
+  The browser UI uses its own cookie session instead (`WebUI._guard`), and its
+  writes require the `X-Wardrobe: 1` header.
 - Compare secrets with `hmac.compare_digest`; generate them with `secrets.token_urlsafe`.
 
 ## Time and place
