@@ -18,9 +18,16 @@ The user-facing format is in [guides/wardrobe-folder.md](../guides/wardrobe-fold
   - `get(item_id) -> Item | None`, `profile() -> dict`, `inbox_files() -> list[Path]`.
   - `refresh(force=False)`: re-reads only if file names or mtimes changed;
     checks at most every `refresh_interval` seconds.
-  - `save_item(item_id | None, fields, add_photos=None, move_photos=True) -> Item`:
+  - `save_item(item_id | None, fields, add_photos=None, move_photos=True, archive_photos=None) -> Item`:
     creates (when `item_id` is None, which needs `name`) or merges fields. A
     field set to `None` is deleted. Photos are moved in as `<n>.<ext>`.
+    `archive_photos` accepts explicit existing direct-child image `Path`s (for
+    example from `Item.photos`), moving only those files to `.photo-archive/`.
+    Archived originals are preserved but not scanned/displayed; collisions get
+    a numeric suffix. May be combined with replacement `add_photos`, or used
+    alone. Invalid archive targets, archive directories, or replacement paths
+    fail before any writes; traversal and symlinks are rejected. This is not a
+    filesystem transaction: later I/O failures may leave a partial operation.
   - `new_item_id(name, brand, colour) -> str`; `errors: list[str]` (broken files).
 - `Item`: `id`, `path`, `data`, `photos`, `inferred` (fields guessed, not written)
   - properties: `name brand category layer colour warmth formality rain_ok
@@ -59,7 +66,8 @@ The user-facing format is in [guides/wardrobe-folder.md](../guides/wardrobe-fold
 
 - `tests/test_catalog.py`: inference on load, hand edits picked up, save with
   inbox photo, broken YAML isolation, retired items hidden; `me/` appearance
-  and photos.
+  and photos. Explicit photo archival covers preservation, replacement, repeat
+  collisions, refresh, and no writes on invalid paths.
 - Indirectly: every tool test uses the demo catalog.
 
 ## Non-goals

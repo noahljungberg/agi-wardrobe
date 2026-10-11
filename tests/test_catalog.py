@@ -1,5 +1,6 @@
 import time
 
+import pytest
 import yaml
 
 from wardrobe.catalog import Catalog
@@ -63,3 +64,113 @@ def test_me_appearance_and_photos(demo_dir):
         cat.save_me({"shoe_size": 43})
     assert not cat.remove_me_photo("../profile.yaml")
     assert cat.remove_me_photo("1.jpg") and cat.me()["photos"] == []
+
+
+@pytest.mark.parametrize("replacement", [False, True])
+def test_archive_selected_photos_preserves_other_photos(demo_dir, replacement):
+    cat = Catalog(demo_dir)
+    item = cat.get("acne-wool-scarf-charcoal")
+    original = item.main_photo
+    original_bytes = original.read_bytes()
+    untouched = original.with_name("3.jpg")
+    untouched.write_bytes(original_bytes)
+    source = cat.inbox_dir / "replacement.jpg"
+    source.write_bytes(original_bytes)
+    result = cat.save_item(item.id, {"notes": "reviewed"},
+                           archive_photos=[original],
+                           add_photos=[source] if replacement else None,
+                           move_photos=False)
+    assert not original.exists()
+    assert (item.path / ".photo-archive" / original.name).read_bytes() == original_bytes
+    assert untouched in result.photos and untouched.read_bytes() == original_bytes
+    assert len(result.photos) == (2 if replacement else 1)
+    assert result.data["notes"] == "reviewed"
+    assert source.exists()
+    assert Catalog(demo_dir).get(item.id).photos == result.photos
+
+
+def test_archive_all_photos_and_repeat_preserves_originals(demo_dir):
+    cat = Catalog(demo_dir)
+    item = cat.get("acne-wool-scarf-charcoal")
+    original_bytes = item.main_photo.read_bytes()
+    result = cat.save_item(item.id, {}, archive_photos=item.photos)
+    assert result.photos == [] and result.main_photo is None
+    source = cat.inbox_dir / "replacement.jpg"
+    source.write_bytes(original_bytes)
+    result = cat.save_item(item.id, {}, add_photos=[source], move_photos=False)
+    result = cat.save_item(item.id, {}, archive_photos=result.photos, add_photos=[source])
+    archive = item.path / ".photo-archive"
+    assert sorted(p.name for p in archive.iterdir()) == ["1-2.jpg", "1.jpg"]
+    assert all(p.read_bytes() == original_bytes for p in archive.iterdir())
+    assert len(result.photos) == 1
+
+
+@pytest.mark.parametrize("bad_target", ["missing", "outside", "traversal", "nested", "symlink", "yaml", "archive_symlink", "archive_file", "replacement_missing", "replacement_selected", "replacement_symlink", "item_symlink"])
+def test_archive_validation_makes_no_changes(demo_dir, bad_target):
+    cat = Catalog(demo_dir)
+    item = cat.get("acne-wool-scarf-charcoal")
+    original = item.main_photo
+    target = original
+    item_id = item.id
+    additions = []
+    if bad_target == "missing":
+        target = item.path / "missing.jpg"
+    elif bad_target == "outside":
+        target = cat.get("nubikk-leather-sneakers-white").main_photo
+    elif bad_target == "traversal":
+        target = item.path / ".." / item.id / original.name
+    elif bad_target == "nested":
+        (item.path / "nested").mkdir()
+        target = item.path / "nested" / "image.jpg"
+        target.write_bytes(b"nested")
+    elif bad_target == "symlink":
+        target = item.path / "linked.jpg"
+        target.symlink_to(original)
+    elif bad_target == "yaml":
+        target = item.path / "item.yaml"
+    elif bad_target == "archive_symlink":
+        (item.path / ".photo-archive").symlink_to(cat.inbox_dir, target_is_directory=True)
+    elif bad_target == "archive_file":
+        (item.path / ".photo-archive").write_bytes(b"keep")
+    elif bad_target == "replacement_missing":
+        additions = [cat.inbox_dir / "missing.jpg"]
+    elif bad_target == "replacement_selected":
+        additions = [original]
+    elif bad_target == "replacement_symlink":
+        source = cat.inbox_dir / "linked.jpg"
+        source.symlink_to(original)
+        additions = [source]
+    elif bad_target == "item_symlink":
+        (cat.items_dir / "alias").symlink_to(item.path, target_is_directory=True)
+        item_id = "alias"
+    before = {str(p.relative_to(demo_dir)): p.read_bytes()
+              for p in demo_dir.rglob("*") if p.is_file()}
+    with pytest.raises(ValueError):
+        cat.save_item(item_id, {"notes": "must not save"},
+                      archive_photos=[original, target], add_photos=additions)
+    after = {str(p.relative_to(demo_dir)): p.read_bytes()
+             for p in demo_dir.rglob("*") if p.is_file()}
+    assert before == after
+    assert not (item.path / ".photo-archive").exists() or bad_target in {"archive_symlink", "archive_file"}
+
+
+def test_archive_replacement_skips_existing_number_and_broken_symlinks(demo_dir):
+    cat = Catalog(demo_dir)
+    item = cat.get("acne-wool-scarf-charcoal")
+    original = item.main_photo
+    second = item.path / "2.jpg"
+    second.write_bytes(original.read_bytes())
+    source = cat.inbox_dir / "new.jpg"
+    source.write_bytes(b"replacement")
+    broken = item.path / "3.jpg"
+    broken.symlink_to(cat.inbox_dir / "missing.jpg")
+    archive = item.path / ".photo-archive"
+    archive.mkdir()
+    archived_link = archive / original.name
+    archived_link.symlink_to(cat.inbox_dir / "missing-archive.jpg")
+    result = cat.save_item(item.id, {}, archive_photos=[original], add_photos=[source])
+    assert second.read_bytes() != b"replacement"
+    assert (item.path / "4.jpg").read_bytes() == b"replacement"
+    assert broken.is_symlink() and archived_link.is_symlink()
+    assert (archive / "1-2.jpg").read_bytes() == second.read_bytes()
+    assert second in result.photos

@@ -293,6 +293,7 @@ class Catalog:
         fields: dict[str, Any],
         add_photos: list[Path] | None = None,
         move_photos: bool = True,
+        archive_photos: list[Path] | None = None,
     ) -> Item:
         """Create or update an item. `fields` with value None are removed."""
         with self._lock:
@@ -301,8 +302,23 @@ class Catalog:
                     raise ValueError("a new item needs a name")
                 item_id = self.new_item_id(fields["name"], fields.get("brand"), fields.get("colour"))
             folder = self.items_dir / item_id
-            if folder.resolve().parent != self.items_dir.resolve():
+            if (not item_id or Path(item_id).name != item_id or folder.is_symlink()
+                    or folder.resolve().parent != self.items_dir.resolve()):
                 raise ValueError(f"invalid item id: {item_id!r}")
+            archive = folder / ".photo-archive"
+            selected = list(dict.fromkeys(archive_photos or []))
+            for src in selected:
+                if (".." in src.parts or src.parent.absolute() != folder.absolute()
+                        or src.is_symlink() or not src.is_file()
+                        or src.suffix.lower() not in IMAGE_EXTS):
+                    raise ValueError(f"invalid photo to archive: {src}")
+            if selected:
+                if archive.is_symlink() or (archive.exists() and not archive.is_dir()):
+                    raise ValueError(f"invalid photo archive: {archive}")
+                for src in add_photos or []:
+                    if (not src.is_file() or src.is_symlink()
+                            or src.resolve() in {p.resolve() for p in selected}):
+                        raise ValueError(f"invalid replacement photo: {src}")
             folder.mkdir(parents=True, exist_ok=True)
             yaml_path = folder / "item.yaml"
             data: dict[str, Any] = {}
@@ -316,6 +332,14 @@ class Catalog:
             if "colour" in fields and fields["colour"]:
                 data["colour"] = canonical_colour(str(fields["colour"])) or fields["colour"]
             write_item_yaml(yaml_path, data)
+            if selected:
+                archive.mkdir(exist_ok=True)
+                for src in selected:
+                    dest, n = archive / src.name, 2
+                    while dest.exists() or dest.is_symlink():
+                        dest = archive / f"{src.stem}-{n}{src.suffix}"
+                        n += 1
+                    src.rename(dest)
             existing = sorted((p for p in folder.iterdir() if p.suffix.lower() in IMAGE_EXTS), key=_natural_key)
             next_n = len(existing) + 1
             for src in add_photos or []:
@@ -336,7 +360,7 @@ def _free_photo_path(folder: Path, n: int, suffix: str) -> Path:
     suffix = suffix if suffix in IMAGE_EXTS else ".jpg"
     while True:
         candidate = folder / f"{n}{suffix}"
-        if not candidate.exists():
+        if not candidate.exists() and not candidate.is_symlink():
             return candidate
         n += 1
 
