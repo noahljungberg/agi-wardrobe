@@ -1,4 +1,4 @@
-"""Command line: `wardrobe serve | demo | import | check`."""
+"""Command line: `wardrobe serve | demo | import | check | tryon | secret`."""
 
 from __future__ import annotations
 
@@ -20,6 +20,9 @@ def main(argv: list[str] | None = None) -> int:
     imp.add_argument("urls", nargs="*", help="links; or use --file")
     imp.add_argument("--file", type=Path, help="text file with one link per line (# comments allowed)")
     sub.add_parser("check", help="validate the wardrobe folder and print a summary")
+    tryon = sub.add_parser("tryon", help="draw an outfit on you with the signed-in Codex CLI (what try_on does)")
+    tryon.add_argument("items", nargs="+", help="item ids or phrases, e.g. 'navy knit' 'grey trousers'")
+    tryon.add_argument("--styling", default="", help="e.g. 'shirt tucked in'")
     sub.add_parser("secret", help="print a random passphrase/token you can use in the env file")
     args = parser.parse_args(argv)
 
@@ -47,6 +50,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "check":
         return check(config)
+    if args.command == "tryon":
+        return asyncio.run(try_on(config, args.items, args.styling))
     if args.command == "import":
         urls = list(args.urls)
         if args.file:
@@ -105,6 +110,37 @@ def check(config) -> int:
     if inbox:
         print(f"{len(inbox)} photo(s) waiting in inbox/")
     return 1 if catalog.errors else 0
+
+
+async def try_on(config, phrases: list[str], styling: str) -> int:
+    from wardrobe.matching import resolve
+    from wardrobe.server import Wardrobe
+    from wardrobe.tryon import TryOnError
+
+    w = Wardrobe(config)
+    items = []
+    for phrase in phrases:
+        found = resolve(w.catalog.items(), phrase)
+        if not found.item:
+            options = ", ".join(c.id for c in found.candidates[:5]) or "no match"
+            print(f"{phrase!r}: {options}", file=sys.stderr)
+            return 1
+        items.append(found.item)
+    person = w.tryon.pick_person(w.catalog.me().get("photos") or [])
+    if not person:
+        print("No photo of you in me/ yet: add a full-length photo first.", file=sys.stderr)
+        return 1
+    print(f"Drawing {len(items)} item(s) on you with Codex (1–2 min)…")
+    try:
+        status = await w.tryon.obtain(person, items, styling, wait=w.tryon.timeout + 30)
+    except TryOnError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    if status.state != "done":
+        print(f"Failed: {status.error or status.state}", file=sys.stderr)
+        return 1
+    print(status.path)
+    return 0
 
 
 async def import_links(config, urls: list[str]) -> int:

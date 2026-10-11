@@ -18,6 +18,7 @@ Commands (`wardrobe = wardrobe.cli:main`, also `python -m wardrobe`):
 | `wardrobe import <url>… / --file links.txt` | Imports links into `WARDROBE_DIR`; exit 1 if any fail |
 | `wardrobe check` | Lists items, missing photos, guessed fields, inbox; exit 1 on broken files |
 | `wardrobe demo <folder>` | 16 demo items with drawn photos + `profile.yaml` (no config needed) |
+| `wardrobe tryon <item>… [--styling …]` | Draws the outfit on you with the signed-in Codex CLI (what `try_on` does) and prints the picture's path; exit 1 on failure |
 | `wardrobe secret` | Prints a random token |
 
 Environment (`Config.from_env`):
@@ -35,10 +36,12 @@ Environment (`Config.from_env`):
 | `WARDROBE_PRIVATE_PORT` | `8766` | Private app |
 | `WARDROBE_HOME` | unset | Fallback location (after `profile.yaml home`) |
 | `WARDROBE_CHROMIUM` | unset (Playwright's browser) | Chromium binary for the importer, e.g. `/usr/bin/chromium` |
+| `WARDROBE_CODEX` | `codex` | Codex CLI for outfit pictures ([tryon.md](tryon.md)): a command on PATH or a full path; `off` disables them |
+| `WARDROBE_CODEX_MODEL` | unset (Codex's default) | Agent model for those runs, only if Codex rejects its default for ChatGPT sign-in |
 
 ## Implementation files
 
-- `src/wardrobe/cli.py`: argument parsing, `serve`, `check`, `import_links`.
+- `src/wardrobe/cli.py`: argument parsing, `serve`, `check`, `try_on`, `import_links`.
 - `src/wardrobe/config.py`: `Config`, `ConfigError`.
 - `src/wardrobe/demo.py`: `make_demo(root)`, `DEMO_ITEMS`. Also the test
   fixture data.

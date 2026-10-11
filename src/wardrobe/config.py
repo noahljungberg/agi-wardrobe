@@ -28,6 +28,10 @@ class Config:
     home: str | None
     """Fallback location when the phone hasn't reported one: a place name or 'lat,lon'."""
     chromium: str | None
+    codex: str | None = "codex"
+    """Codex CLI used for outfit pictures (`try_on`): a command on PATH or a full path; None = off."""
+    codex_model: str | None = None
+    """Agent model for those Codex runs, if the built-in default is rejected."""
 
     @property
     def public_host(self) -> str:
@@ -53,6 +57,7 @@ class Config:
         passphrase = get("WARDROBE_PASSPHRASE")
         if auth == "oauth" and (not passphrase or len(passphrase) < 8):
             raise ConfigError("WARDROBE_PASSPHRASE must be set (8+ characters) when WARDROBE_AUTH=oauth")
+        codex = get("WARDROBE_CODEX", "codex") or "codex"
 
         return cls(
             wardrobe_dir=Path(wardrobe_dir).expanduser(),
@@ -66,4 +71,6 @@ class Config:
             private_port=int(get("WARDROBE_PRIVATE_PORT", "8766")),
             home=get("WARDROBE_HOME"),
             chromium=get("WARDROBE_CHROMIUM"),
+            codex=None if codex.lower() in ("off", "none", "0") else codex,
+            codex_model=get("WARDROBE_CODEX_MODEL"),
         )

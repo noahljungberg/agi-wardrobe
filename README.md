@@ -40,6 +40,7 @@ Shortcuts), see **[docs/guides/setup.md](docs/guides/setup.md)**.
 |---|---|
 | `dress_me` | Weather where you are, plus candidates per slot as a numbered photo sheet the model can see |
 | `show_outfit` | The outfit as an inline photo card (MCP Apps / ChatGPT), a collage image and a link |
+| `try_on` | "Show it on me": an AI picture of you wearing the outfit, drawn by your signed-in Codex (ChatGPT subscription) |
 | `log_wear` | "I'm wearing…" / "wore … yesterday" |
 | `find_items` | "Do I have a navy knit?", with photos |
 | `save_item` | Add or edit items, attach inbox photos, retire things |
@@ -48,6 +49,7 @@ Shortcuts), see **[docs/guides/setup.md](docs/guides/setup.md)**.
 | `wardrobe_analysis` | Gaps, near-duplicates, hard-to-combine items, cost per wear, never worn |
 | `remember` / `forget` | Lasting preferences ("never black with brown") |
 | `set_location` | "I'm in San Francisco" |
+| `about_me` / `update_appearance` | How you look (hair, eyes, photos), so colours suit you |
 
 ## On the computer
 
@@ -66,6 +68,7 @@ uv run wardrobe import --file links.txt
 uv run wardrobe check                 # validate the folder
 uv run wardrobe demo <folder>         # demo wardrobe with drawn photos
 uv run wardrobe secret                # random passphrase/token
+uv run wardrobe tryon 'navy knit' 'grey trousers'   # test outfit pictures via Codex
 uv run pytest -q
 scripts/verify.sh                     # lint + architecture + docs checks + tests
 ```

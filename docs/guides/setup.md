@@ -194,10 +194,35 @@ See [shortcuts.md](shortcuts.md):
 - "Add to wardrobe" from Safari,
 - "Add photo to wardrobe" from Photos.
 
+## 10. Outfit pictures on you (optional)
+
+"Show it on me" draws the outfit on you with Codex's image generation, using your
+ChatGPT subscription (no API key, no per-picture cost; each picture uses some of
+your Codex usage limit). On the home machine, as the user the service runs as:
+
+```sh
+npm install -g @openai/codex     # or your package manager's Codex CLI
+codex login                      # choose "Sign in with ChatGPT"
+which codex                      # if systemd can't find it, put this path in WARDROBE_CODEX
+```
+
+Add a **full-length photo** of yourself in the web UI (Me tab): standing, even
+light, fitted clothes. Then test it from a terminal:
+
+```sh
+cd ~/agi-wardrobe && set -a && . ~/.config/wardrobe/wardrobe.env && set +a
+uv run wardrobe tryon 'navy knit' 'grey trousers'
+```
+
+It prints the picture's path after 1–2 minutes. In ChatGPT or Claude, ask
+"show it on me" after an outfit suggestion. Your photos are sent to OpenAI
+through Codex only when you ask for a picture.
+
 ## Troubleshooting
 
 | Symptom | Check |
 |---|---|
+| "Show it on me" says Codex isn't installed / signed in | Run `uv run wardrobe tryon …` on the machine (section 10); set `WARDROBE_CODEX` to the full `which codex` path; `codex login status` must say ChatGPT, not an API key. If Codex rejects its default model, set `WARDROBE_CODEX_MODEL` (e.g. `gpt-5.5`). |
 | Connector says "couldn't reach this address" / "Kunde inte nå den här adressen" | The public URL doesn't answer from the internet. Check: `systemctl --user status wardrobe` is active; `curl http://127.0.0.1:8765/` on the machine prints the hello; `tailscale funnel status` shows the port **(Funnel on)** proxying to `http://127.0.0.1:8765`; HTTPS certificates are enabled in the admin console; Funnel is allowed by the tailnet policy (the `funnel` node attribute); the URL uses the Funnel port, not `:8443`. Then test from the phone with Tailscale off on mobile data. Right after enabling, wait a few minutes. |
 | Connector reaches the server but MCP returns 421 "Invalid Host header" | `WARDROBE_PUBLIC_URL` doesn't match the Funnel name; fix it and restart |
 | Login loops / "invalid redirect" | `WARDROBE_PUBLIC_URL` must exactly match the Funnel URL (https, no trailing slash) |

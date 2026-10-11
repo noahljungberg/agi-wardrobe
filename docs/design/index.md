@@ -20,6 +20,7 @@ Status: complete
 | Link importer | [importer.md](importer.md) | `importer.py` | complete (not yet run against live shops) | low |
 | Wardrobe analysis | [analysis.md](analysis.md) | `analysis.py` | complete | medium |
 | OAuth | [auth.md](auth.md) | `auth.py` | complete | high |
+| Outfit on you (Codex pictures) | [tryon.md](tryon.md) | `tryon.py` | complete (not yet run against a signed-in Codex) | low |
 | MCP tools & `Wardrobe` service | [mcp-tools.md](mcp-tools.md) | `server.py` (tools) | complete | high |
 | HTTP apps & routes | [http-api.md](http-api.md) | `server.py` (apps, routes) | complete | high |
 | Web UI (browser) | [web-ui.md](web-ui.md) | `webui.py`, `ui/catalog.html` | complete | medium |
@@ -37,4 +38,5 @@ Status: complete
 | "The card looks wrong in ChatGPT/Claude" | [outfit-card.md](outfit-card.md) |
 | "ChatGPT can't connect / login fails" | [auth.md](auth.md), [http-api.md](http-api.md), [guides/setup.md](../guides/setup.md) |
 | "Show/edit the wardrobe in a browser", "the catalogue page" | [web-ui.md](web-ui.md) |
+| "Show the outfit on me", "the try-on picture is wrong / never arrives" | [tryon.md](tryon.md) |
 | "Location is stale" | [http-api.md](http-api.md) (`/location`), [guides/shortcuts.md](../guides/shortcuts.md) |

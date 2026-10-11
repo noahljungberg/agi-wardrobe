@@ -55,8 +55,18 @@ anything you can and then ask.
   - Acceptance: the "To complete" count reaches 0 (with the assistant's help via
     "Copy brief"); feedback on the UI recorded below.
 
+- [ ] 10. 👤 **Outfit pictures via Codex** ([guides/setup.md](../../guides/setup.md) §10):
+  `codex login` on the machine, a full-length photo in the Me tab, then
+  `uv run wardrobe tryon …`.
+  - Acceptance: a picture comes back; "show it on me" works in ChatGPT; record
+    the time it took, whether it looks like you, and garment accuracy here and in
+    [tryon.md](../../design/tryon.md); QUALITY row updated.
+
 ## Decision log
 
+- 2026-10-11: Outfit pictures use the owner's signed-in Codex CLI (ChatGPT subscription)
+  rather than a pay-per-image API (Nano Banana ≈ $0.03–0.13, gpt-image-2 ≈ $0.05–0.21 per
+  picture). Owner's choice; the API route stays a fallback behind the same `TryOn` interface.
 - 2026-10-09: The display method on iPhone is unknown, so `show_outfit`
   returns all three (MCP Apps card, image content, collage link). Keep all
   three until task 4 shows which ones render.
@@ -94,3 +104,8 @@ anything you can and then ask.
   **Me** tab. The photo can be kept out of suggestions with
   `photo_in_suggestions: false`. Owner to fill in: hair, eyes, a face photo and
   a full-length photo.
+- 2026-10-11: Owner wants to see outfits on themselves. Researched options as of October 2026
+  (ChatGPT Images, Codex `$imagegen`, Nano Banana, gpt-image-2, FASHN, Doppl, local models);
+  the Gemini app's custom MCP connectors and Doppl are US-only. Built `try_on` + `wardrobe tryon`
+  on `codex exec` ([tryon.md](../../design/tryon.md)). Not yet run against a signed-in Codex
+  (task 10).

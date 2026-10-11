@@ -4,7 +4,7 @@ Status: complete
 
 ## Purpose
 
-The surface the chat model sees: server instructions plus 11 tools. Also the
+The surface the chat model sees: server instructions plus 14 tools. Also the
 `Wardrobe` service object that tools and HTTP routes share.
 
 ## Public API
@@ -21,7 +21,8 @@ unless confirmed. Missing photos are permitted without inventing visual details.
 not a bare "ok", liking a suggestion or a future plan. `remember` remains the
 existing mechanism for user-confirmed context. How the user looks is the one
 structured profile: `me/` via `update_appearance` and `about_me` (added on the owner's
-request, 2026-10-11).
+request, 2026-10-11). `try_on` is called when the user wants to see the outfit on themselves,
+again with the same ids while it says it's still drawing; its picture is never fit evidence.
 
 | Tool | R/O | Inputs | Returns |
 |---|---|---|---|
@@ -37,11 +38,12 @@ request, 2026-10-11).
 | `forget` | no (destructive) | `pref_id` | Confirmation |
 | `set_location` | no | `place` | Confirmation (geocoded) |
 | `about_me` | yes | none | Appearance text + up to 3 photos of the user (768 px) |
+| `try_on` | yes (open world) | `item_ids[]`, `styling?` | Waits up to 50 s (`TRYON_WAIT`): a link to the picture of the user wearing the outfit (valid 24 h) + the picture (640 px), or "still drawing, call again", or the error. No photo of the user → asks for one. See [tryon.md](tryon.md) |
 | `update_appearance` | no | `hair? eyes? skin? undertone? height_cm? build? fit_notes? notes? photo_in_suggestions?`, `from_inbox[]` | Confirmation with the saved description |
 
 `Wardrobe` service (`Wardrobe(config, weather=None)`):
 
-- `catalog`, `state`, `renderer`, `weather`, `config`
+- `catalog`, `state`, `renderer`, `weather`, `config`, `tryon` (`TryOn`, see [tryon.md](tryon.md))
 - `place(override) -> (Place, source)`: priority explicit place → phone
   location < 36 h → profile `home` → `WARDROBE_HOME` → last known location;
   raises `LocationUnknown`.
@@ -88,6 +90,9 @@ request, 2026-10-11).
   default only. Do not display its invented temperatures, dry conditions or
   computed layer guidance. Candidates are not weather-validated; the response
   states uncertainty and asks for a conditional layer adjustment.
+- `try_on` is read-only for the wardrobe (it only writes the picture cache) and open-world (Codex
+  sends the photos to OpenAI). It never blocks longer than `TRYON_WAIT`; the job keeps running
+  and the next call with the same ids joins it.
 - `show_outfit` resolves active items only; historical `log_wear` may still use
   inactive items. This does not change ranking, availability rules or tool schemas.
 - User mistakes come back as text or `is_error`, never as exceptions
@@ -107,6 +112,7 @@ request, 2026-10-11).
   and the server instruction evidence contract. These are output/contract tests,
   not proof that every connected model follows the instructions.
 - `tests/test_http.py`: the same tools over real HTTP with OAuth.
+- `tests/test_tryon.py::test_try_on_tool`: `try_on` without a photo, with a fake Codex, unknown ids.
 - `tests/test_server.py::test_appearance_reaches_the_stylist`: no appearance → hint; saved
   description and the "You" tile in `dress_me`; `about_me` photos; the photo toggle; analysis.
 

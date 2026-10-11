@@ -35,7 +35,7 @@ A module may import only from **strictly lower** layers.
 | 0 Foundation | `config`, `heuristics`, `state`, `weather` | No internal imports. Env config, name→attribute guessing, SQLite, forecasts. |
 | 1 Model | `catalog` | The wardrobe folder as `Item` objects. |
 | 2 Domain | `matching`, `outfit`, `render` | Pure-ish logic on items: fuzzy resolve, slot/weather scoring, images. |
-| 3 Features | `analysis`, `importer`, `auth`, `demo` | Built from the domain: gap stats, link import, OAuth provider, demo data. |
+| 3 Features | `analysis`, `importer`, `auth`, `demo`, `tryon` | Built from the domain: gap stats, link import, OAuth provider, demo data, outfit pictures on you via the owner's Codex CLI. |
 | 4 Surfaces | `webui` | The browser UI and its JSON API, built from injected catalog/state/renderer. |
 | 5 App | `server` | MCP tools, HTTP routes, the `Wardrobe` service. The only place that composes everything. |
 | 6 Entry | `cli` | Argument parsing, uvicorn, wiring config → server. |

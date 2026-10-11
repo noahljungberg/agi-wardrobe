@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import json
 import logging
+import shutil
 import time
 from datetime import date, datetime, timedelta, timezone
 from importlib.resources import files
@@ -39,6 +40,7 @@ from wardrobe.matching import resolve, search
 from wardrobe.outfit import SLOT_TITLES, SLOTS, pick_candidates, slot_of, temperature_bias
 from wardrobe.render import Renderer
 from wardrobe.state import State
+from wardrobe.tryon import TryOn, TryOnError
 from wardrobe.weather import DayWeather, Place, WeatherClient
 from wardrobe.webui import WebUI
 
@@ -47,6 +49,8 @@ log = logging.getLogger(__name__)
 OUTFIT_UI = "ui://wardrobe/outfit-v2.html"
 OUTFIT_UI_OPENAI = "ui://wardrobe/outfit-openai-v2.html"
 LOCATION_MAX_AGE = 36 * 3600
+TRYON_WAIT = 50
+"""Seconds `try_on` waits for a picture before saying it's still drawing (clients time out around a minute)."""
 
 INSTRUCTIONS = """\
 You are the user's personal stylist with access to their real wardrobe. Some items have no photos.
@@ -91,6 +95,9 @@ they added one, a photo tile labelled "You". Use it for colours near the face (c
 their own fit notes. The photo shows colouring, not exact fit or measurements. If nothing is saved, \
 don't guess their colouring. Save what they tell you with `update_appearance`; use `about_me` for \
 questions like "what colours suit me?".
+- When they want to see the outfit on themselves, call `try_on` with the same ids after `show_outfit`. \
+It takes 1–2 minutes; if it says it's still drawing, call it again with the same ids. Share its link like the \
+collage. The picture is an AI approximation: never judge fit, length or trouser break from it.
 """
 
 
@@ -107,6 +114,7 @@ class Wardrobe:
         self.catalog.ensure_layout()
         self.state = State(config.state_dir)
         self.renderer = Renderer(self.state.cache_dir)
+        self.tryon = TryOn(self.state.cache_dir, self.renderer, config.codex, config.codex_model)
         self.weather = weather or WeatherClient()
         self._image_key = self.state.secret("image-signing").encode()
 
@@ -722,6 +730,44 @@ def build_mcp(w: Wardrobe) -> MCPServer:
             return f"Couldn't find {place!r}."
         w.state.set_location(found.lat, found.lon, found.name, "you said", found.tz)
         return f"Location set to {found.name}."
+
+    # ------------------------------------------------------------------ try_on
+
+    @mcp.tool(title="Show it on me", annotations=ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=True))
+    async def try_on(
+        item_ids: Annotated[list[str], Field(description="Ids of the outfit's items, as passed to show_outfit.")],
+        styling: Annotated[str | None, Field(description="Optional styling to show, e.g. 'shirt tucked in, jacket open'.")] = None,
+    ) -> CallToolResult:
+        """Draw the outfit on the user from their photo (AI picture, 1–2 min). Only when they ask to see it on them."""
+        chosen, problems = _resolve_many(w.catalog.items(), item_ids)
+        if not chosen:
+            return CallToolResult(content=[_text("None of those ids matched. " + "; ".join(problems))], is_error=True)
+        person = w.tryon.pick_person(w.catalog.me().get("photos") or [])
+        if not person:
+            return CallToolResult(content=[_text(
+                "No photo of the user is saved. Ask them to add a full-length photo (web UI → Me, or send it to "
+                "the inbox and save it with `update_appearance` from_inbox), then try again."
+            )])
+        try:
+            status = await w.tryon.obtain(person, chosen, styling or "", wait=TRYON_WAIT)
+        except TryOnError as exc:
+            return CallToolResult(content=[_text(str(exc))], is_error=True)
+        if status.state == "failed":
+            return CallToolResult(content=[_text(f"The picture failed: {status.error}")], is_error=True)
+        if status.state == "running":
+            return CallToolResult(content=[_text(
+                f"Still drawing (started {round(status.seconds)} s ago; usually 1–2 min). "
+                "Call try_on again with the same item_ids to get it."
+            )])
+        assert status.path
+        link_copy = w.renderer.out_dir / f"tryon-{status.path.stem}-{int(time.time())}.jpg"
+        shutil.copyfile(status.path, link_copy)
+        url = w.render_url(link_copy)
+        text = (f"Picture of the outfit on them (valid 24 h): {url}\nAI approximation from their photo: colours and "
+                "combination only, not how it actually fits.")
+        if problems:
+            text += "\nSkipped: " + "; ".join(problems)
+        return CallToolResult(content=[_text(text), _image(w.renderer.scaled_jpeg(status.path, 640, 78))])
 
     # ------------------------------------------------------------ HTTP routes
 

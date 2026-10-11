@@ -18,7 +18,7 @@ LAYERS: dict[str, int] = {
     "__init__": 0, "config": 0, "heuristics": 0, "state": 0, "weather": 0,
     "catalog": 1,
     "matching": 2, "outfit": 2, "render": 2,
-    "analysis": 3, "importer": 3, "auth": 3, "demo": 3,
+    "analysis": 3, "importer": 3, "auth": 3, "demo": 3, "tryon": 3,
     "webui": 4,
     "server": 5,
     "cli": 6,
