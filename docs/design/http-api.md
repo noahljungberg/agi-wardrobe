@@ -31,6 +31,7 @@ route except `/health` requires `Authorization: Bearer $WARDROBE_DEVICE_TOKEN`
 | `POST /import` | `{url}` or share-sheet `{url, title, jsonld[], meta{}, images[]}` | link import → `{ok, id, message}` |
 | `POST /inbox` | multipart, any file fields | photos → `inbox/` as JPEG |
 | `GET /health` | none | `{ok, items, errors}` |
+| `/`, `/ui`, `/ui/...` | session cookie | the browser UI, see [web-ui.md](web-ui.md) |
 
 Bodies without a form content type are parsed as JSON. Shortcuts sometimes
 omit the header.
@@ -66,4 +67,5 @@ omit the header.
 
 ## Non-goals
 
-- No web UI beyond the login page. The owner doesn't want websites.
+- No web pages on the **public** app beyond the OAuth login. The browser UI
+  lives on the private app only ([web-ui.md](web-ui.md)).

@@ -19,7 +19,7 @@ most one question).
 | `show_outfit` | yes | `item_ids[]`, `title?`, `note?`, `day` | Text with collage link, collage image (640 px), `structuredContent` for the card, `_meta.wardrobe/thumbs`; bound to `ui://wardrobe/outfit-v2.html` |
 | `log_wear` | no | `items[]` (ids or phrases), `day` today/yesterday/ISO, `note?` | Confirmation; ambiguous phrases are listed, not logged |
 | `find_items` | yes | `query`, `category?`, `include_retired` | Up to 40 matches with wear stats; contact sheet |
-| `save_item` | no | `item_id?` + any item fields, `status`, `from_inbox[]` | Saved summary + photo; clears `needs_review` |
+| `save_item` | no | `item_id?` + any item fields, `status` (owned/laundry/retired/wishlist), `favourite`, `from_inbox[]` | Saved summary + photo; clears `needs_review` |
 | `review_inbox` | yes | none | Up to 6 inbox photos, each with its file name |
 | `import_links` | no (open world) | `urls[]` (≤25) | Per-link result; contact sheet of new items |
 | `wardrobe_analysis` | yes | none | JSON from `analysis.analyse` + profile + preferences |

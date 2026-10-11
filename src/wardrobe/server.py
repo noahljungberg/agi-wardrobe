@@ -40,6 +40,7 @@ from wardrobe.outfit import SLOT_TITLES, SLOTS, pick_candidates, slot_of, temper
 from wardrobe.render import Renderer
 from wardrobe.state import State
 from wardrobe.weather import DayWeather, Place, WeatherClient
+from wardrobe.webui import WebUI
 
 log = logging.getLogger(__name__)
 
@@ -187,6 +188,8 @@ def _item_line(label: str, item: Item, last: date | None, today: date) -> str:
         bits.append("NO PHOTO")
     if item.get("needs_review"):
         bits.append("needs review")
+    if item.favourite:
+        bits.append("★ favourite")
     return f"{label} `{item.id}` — {item.label()} · {', '.join(bits)} · {_days_ago(last, today)}"
 
 
@@ -468,7 +471,8 @@ def build_mcp(w: Wardrobe) -> MCPServer:
         size: str | None = None,
         aliases: Annotated[list[str] | None, Field(description="What the user calls it, e.g. ['beige cords']. Replaces the list.")] = None,
         notes: str | None = None,
-        status: Annotated[Literal["owned", "retired", "laundry"] | None, Field(description="retired = gone (sold, returned, worn out); laundry = temporarily unavailable.")] = None,
+        status: Annotated[Literal["owned", "laundry", "retired", "wishlist"] | None, Field(description="laundry = temporarily unavailable; retired = gone (sold, returned, worn out); wishlist = not owned yet.")] = None,
+        favourite: Annotated[bool | None, Field(description="The user especially likes it; suggested a little more often.")] = None,
         from_inbox: Annotated[list[str] | None, Field(description="Inbox photo filenames to attach (they move into the item folder).")] = None,
     ) -> CallToolResult:
         """Create or update an item in the wardrobe folder. Saving also clears the 'needs review' flag."""
@@ -478,7 +482,7 @@ def build_mcp(w: Wardrobe) -> MCPServer:
             k: v for k, v in {
                 "name": name, "brand": brand, "category": category, "type": type, "colour": colour,
                 "material": material, "warmth": warmth, "formality": formality, "rain_ok": rain_ok,
-                "size": size, "aliases": aliases, "notes": notes, "status": status,
+                "size": size, "aliases": aliases, "notes": notes, "status": status, "favourite": favourite,
             }.items() if v is not None
         }
         if category == "tops" and type:
@@ -650,7 +654,7 @@ def _advertise_client_metadata_documents(app: Starlette, auth: AuthSettings) -> 
 
 
 def build_private_app(w: Wardrobe) -> Starlette:
-    """Tailnet-only endpoints for iOS Shortcuts: location, share-sheet import, inbox upload."""
+    """Tailnet-only: the browser UI (`/ui`) and endpoints for iOS Shortcuts (location, import, inbox)."""
 
     def authorised(request: Request) -> bool:
         token = w.config.device_token
@@ -721,7 +725,9 @@ def build_private_app(w: Wardrobe) -> Starlette:
             return JSONResponse({"ok": False, "error": "no images received"}, status_code=400)
         return JSONResponse({"ok": True, "saved": saved, "message": f"{len(saved)} photo(s) in the inbox. Ask your assistant to review the inbox."})
 
+    ui = WebUI(w.catalog, w.state, w.renderer, w.config, today=w.local_today)
     return Starlette(routes=[
+        *ui.routes(),
         Route("/health", health, methods=["GET"]),
         Route("/location", location, methods=["POST", "GET"]),
         Route("/import", import_page, methods=["POST"]),

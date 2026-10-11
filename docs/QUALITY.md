@@ -28,12 +28,13 @@ Last reviewed: 2026-10-09 (v0.1)
 | [auth](design/auth.md) | high | Full OAuth flow over real HTTP in `test_http.py`, both DCR and CIMD (Claude's default) | Real ChatGPT/Claude clients not yet connected |
 | [mcp tools](design/mcp-tools.md) | high | `test_server.py` in-process + over HTTP | Model behaviour with these tools is untested on real chats |
 | [http api](design/http-api.md) | high | `test_http.py` | Tailscale Funnel's Host-header behaviour assumed, not observed |
+| [web ui](design/web-ui.md) | medium | `test_webui.py`: API, auth, CSRF, traversal and a Chromium run (browse, edit, add, insights) | Not yet used on the owner's machine; gap rules are simple heuristics |
 | [cli/config/deploy](design/cli-config.md) | high | Config tested through fixtures; `serve` start/SIGTERM checked by hand | systemd unit not yet run on the Arch machine |
 
 ## Verification commands
 
 ```sh
-scripts/verify.sh           # everything: lint, architecture, docs, 68 tests (~10 s)
+scripts/verify.sh           # everything: lint, architecture, docs and all tests (~15 s)
 scripts/verify.sh --quick   # without browser/HTTP tests
 ```
 

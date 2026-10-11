@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wardrobe</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #faf8f5; --panel: #ffffff; --tile: #f3f1ed; --fg: #221f1c; --muted: #7a716a; --line: #e7e2db;
+    --accent: #221f1c; --accent-fg: #faf8f5; --amber: #c98a1b; --red: #b8452f; --green: #3f7d4f; --blue: #3c5fa0;
+    --shadow: 0 1px 2px rgb(0 0 0 / .04), 0 8px 24px rgb(0 0 0 / .06);
+    --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151311; --panel: #1d1b18; --tile: #f0ede8; --fg: #f2eee9; --muted: #a39b93; --line: #302c28;
+      --accent: #f2eee9; --accent-fg: #151311; --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 8px 24px rgb(0 0 0 / .35); }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: inherit; }
+
+  /* ---------- layout ---------- */
+  .app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+  aside { position: sticky; top: 0; height: 100vh; overflow: auto; padding: 22px 14px 22px 18px; border-right: 1px solid var(--line); }
+  main { min-width: 0; padding: 18px 28px 60px; }
+  .brand { font-size: 20px; font-weight: 700; letter-spacing: -.02em; margin: 2px 6px 18px; display: flex; align-items: center; gap: 8px; }
+  .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--fg); }
+  .nav-title { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 18px 8px 6px; }
+  .nav button { display: flex; justify-content: space-between; align-items: center; width: 100%; border: 0; background: none;
+    padding: 7px 10px; border-radius: 9px; text-align: left; color: var(--fg); }
+  .nav button:hover { background: var(--tile); color: #221f1c; }
+  .nav button.on { background: var(--accent); color: var(--accent-fg); }
+  .nav .n { font-variant-numeric: tabular-nums; opacity: .6; font-size: 12px; }
+  .nav .warn .n { color: var(--amber); opacity: 1; }
+
+  .top { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+  .tabs button { border: 0; background: none; padding: 7px 14px; border-radius: 9px; color: var(--muted); font-weight: 500; }
+  .tabs button.on { background: var(--accent); color: var(--accent-fg); }
+  .search { flex: 1; min-width: 180px; position: relative; }
+  .search input { width: 100%; padding: 10px 14px 10px 36px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); outline: none; }
+  .search input:focus { border-color: var(--fg); }
+  .search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: .5; }
+  .btn { border: 1px solid var(--line); background: var(--panel); padding: 9px 14px; border-radius: 12px; font-weight: 500; }
+  .btn:hover { border-color: var(--fg); }
+  .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .btn.small { padding: 6px 10px; font-size: 13px; border-radius: 10px; }
+
+  /* ---------- stats ---------- */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+  .stat .v { font-size: 26px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .stat .l { color: var(--muted); font-size: 12px; }
+  .palette { display: flex; height: 10px; border-radius: 99px; overflow: hidden; margin-top: 10px; }
+  .palette span { display: block; height: 100%; }
+
+  /* ---------- grid ---------- */
+  .section-h { display: flex; align-items: baseline; gap: 10px; margin: 22px 2px 10px; }
+  .section-h h2 { font-size: 16px; margin: 0; letter-spacing: -.01em; }
+  .section-h .n { color: var(--muted); font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: 18px 16px; align-items: start; }
+  .card { position: relative; display: block; width: 100%; background: none; border: 0; padding: 0; text-align: left; color: inherit; }
+  .card .ph { aspect-ratio: 4 / 5; background: var(--tile); border-radius: 16px; overflow: hidden; display: grid; place-items: center;
+    transition: transform .15s ease, box-shadow .15s ease; }
+  .card:hover .ph { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .card .ph img { width: 100%; height: 100%; object-fit: contain; padding: 10px; }
+  .card .ph.empty { border: 1.5px dashed #c9c1b6; color: #8a8076; font-size: 13px; text-align: center; padding: 12px; }
+  .card .ph.empty b { display: block; font-size: 28px; font-weight: 700; color: #b9afa3; letter-spacing: -.02em; }
+  .card.dim .ph img { opacity: .45; filter: grayscale(.6); }
+  .card .nm { font-weight: 600; margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card .mt { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .badges { position: absolute; top: 8px; left: 8px; display: flex; gap: 5px; flex-wrap: wrap; }
+  .pill { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 99px; background: rgb(255 255 255 / .9); color: #221f1c; box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
+  .pill.laundry { background: #dbe7f7; color: #24427a; }
+  .pill.retired { background: #e8e4df; color: #6b625a; }
+  .pill.wishlist { background: #f3e6c9; color: #7a5410; }
+  .pill.review { background: #fbe9c8; color: #7a5410; }
+  .fav { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border-radius: 50%; border: 0;
+    background: rgb(255 255 255 / .85); color: #b9afa3; font-size: 16px; display: grid; place-items: center; opacity: 0; transition: opacity .15s; }
+  .card:hover .fav, .fav.on { opacity: 1; }
+  .fav.on { color: #d4a017; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .15); }
+  .empty-state { padding: 60px 20px; text-align: center; color: var(--muted); }
+
+  /* ---------- insights ---------- */
+  .ins { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+  .panel h3 { margin: 0 0 4px; font-size: 15px; }
+  .panel .sub { color: var(--muted); margin: 0 0 14px; font-size: 13px; }
+  .gap { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line); }
+  .gap:first-of-type { border-top: 0; }
+  .gap .ic { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none; font-weight: 700; }
+  .gap.ok .ic { background: #e3efe6; color: var(--green); }
+  .gap.miss .ic { background: #f7e3dc; color: var(--red); }
+  .gap .t { font-weight: 600; }
+  .gap .d { color: var(--muted); font-size: 13px; }
+  .gap .acts { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .bar { display: grid; grid-template-columns: 90px 1fr 28px; gap: 10px; align-items: center; margin: 7px 0; font-size: 13px; }
+  .bar .track { height: 8px; background: var(--tile); border-radius: 99px; overflow: hidden; }
+  .bar .fill { height: 100%; background: var(--fg); border-radius: 99px; }
+  .mini { display: flex; gap: 8px; flex-wrap: wrap; }
+  .mini button { border: 0; padding: 0; background: none; width: 64px; text-align: center; font-size: 11px; color: var(--muted); }
+  .mini .ph { width: 64px; height: 80px; border-radius: 10px; background: var(--tile); display: grid; place-items: center; overflow: hidden; margin-bottom: 4px; }
+  .mini img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+  .group { padding: 10px 0; border-top: 1px solid var(--line); }
+  .group:first-of-type { border-top: 0; }
+  pre.brief { white-space: pre-wrap; background: var(--tile); color: #221f1c; border-radius: 12px; padding: 12px; font-size: 12.5px; max-height: 260px; overflow: auto; }
+
+  /* ---------- drawer & dialog ---------- */
+  .scrim { position: fixed; inset: 0; background: rgb(0 0 0 / .25); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 10; }
+  .scrim.on { opacity: 1; pointer-events: auto; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); background: var(--panel); z-index: 11;
+    transform: translateX(100%); transition: transform .22s ease; overflow: auto; box-shadow: -10px 0 40px rgb(0 0 0 / .12); }
+  .drawer.on { transform: none; }
+  .drawer .hero { background: var(--tile); height: min(46vh, 440px); display: grid; place-items: center; position: relative; overflow: hidden; }
+  .drawer .hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 24px; }
+  .drawer .close { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgb(255 255 255 / .9); color: #221f1c; font-size: 18px; }
+  .thumbs { display: flex; gap: 6px; padding: 10px 20px 0; }
+  .thumbs button { width: 52px; height: 52px; border-radius: 10px; border: 2px solid transparent; background: var(--tile); padding: 0; overflow: hidden; }
+  .thumbs button.on { border-color: var(--fg); }
+  .thumbs img { width: 100%; height: 100%; object-fit: contain; }
+  .dbody { padding: 18px 20px 30px; }
+  .dbody h2 { margin: 0; font-size: 21px; letter-spacing: -.02em; }
+  .dbody .meta { color: var(--muted); margin: 2px 0 14px; }
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--tile); border-radius: 12px; padding: 3px; gap: 3px; margin: 6px 0 16px; }
+  .seg button { border: 0; background: none; padding: 7px 0; border-radius: 9px; font-size: 13px; color: #6b625a; }
+  .seg button.on { background: #fff; color: #221f1c; font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / .1); }
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px; }
+  .fact { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 9px 10px; }
+  .fact .v { font-weight: 700; } .fact .l { color: var(--muted); font-size: 11.5px; }
+  .form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .form label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+  .form label.full { grid-column: 1 / -1; }
+  .form input, .form select, .form textarea { width: 100%; min-width: 0; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); outline: none; }
+  .form input:focus, .form select:focus, .form textarea:focus { border-color: var(--fg); }
+  .form input[type=range] { padding: 0; accent-color: var(--fg); }
+  .form input[type=checkbox] { width: auto; accent-color: var(--fg); }
+  .range-v { color: var(--fg); font-weight: 600; }
+  .check { display: flex !important; flex-direction: row; align-items: center; gap: 8px; color: var(--fg) !important; font-size: 13px !important; }
+  .hint { background: #fbf1dc; color: #6a4a0f; border-radius: 12px; padding: 10px 12px; font-size: 12.5px; margin-bottom: 14px; }
+  .row-acts { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+  dialog { border: 0; border-radius: 20px; padding: 0; width: min(520px, calc(100vw - 32px)); background: var(--panel); color: var(--fg); box-shadow: var(--shadow); }
+  dialog::backdrop { background: rgb(0 0 0 / .3); }
+  .dlg { padding: 22px; }
+  .dlg h2 { margin: 0 0 14px; font-size: 19px; }
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--accent); color: var(--accent-fg);
+    padding: 10px 16px; border-radius: 12px; opacity: 0; transition: all .2s; z-index: 20; pointer-events: none; }
+  .toast.on { opacity: 1; transform: translateX(-50%); }
+
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; }
+    aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 14px 16px 8px; }
+    #nav { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+    .nav { display: contents; }
+    .brand { margin-bottom: 12px; }
+    .nav button { white-space: nowrap; width: auto; gap: 8px; border: 1px solid var(--line); }
+    .nav-title { display: none; }
+    main { padding: 14px 16px 60px; }
+    .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand"><span class="dot"></span>Wardrobe</div>
+    <div id="nav"></div>
+  </aside>
+  <main>
+    <div class="top">
+      <div class="tabs" id="tabs">
+        <button data-view="grid" class="on">Wardrobe</button>
+        <button data-view="insights">Insights</button>
+        <button data-view="inbox">Inbox</button>
+      </div>
+      <label class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" placeholder="Search name, brand, colour…  ( / )" autocomplete="off">
+      </label>
+      <button class="btn primary" id="add-btn">+ Add item</button>
+    </div>
+    <div id="view"></div>
+  </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="drawer" id="drawer" aria-hidden="true"></div>
+
+<dialog id="add-dlg">
+  <form class="dlg" method="dialog" id="add-form">
+    <h2>Add to wardrobe</h2>
+    <div class="tabs" style="display:inline-flex;margin-bottom:14px" id="add-tabs">
+      <button type="button" data-mode="quick" class="on">Quick add</button>
+      <button type="button" data-mode="link">From a link</button>
+    </div>
+    <div id="add-quick" class="form">
+      <label class="full">Name<input name="name" placeholder="e.g. White oxford shirt" required></label>
+      <label>Category<select name="category"></select></label>
+      <label>Brand<input name="brand" placeholder="optional"></label>
+      <label>Colour<input name="colour" placeholder="optional"></label>
+      <label>Status<select name="status"><option value="owned">I own it</option><option value="wishlist">Wishlist</option></select></label>
+      <label class="full">Photo<input type="file" name="photo" accept="image/*"></label>
+      <label class="full check"><input type="checkbox" name="favourite"> ★ One of my favourites</label>
+    </div>
+    <div id="add-link" class="form" hidden>
+      <label class="full">Product link<input name="url" placeholder="https://shop.mango.com/…  (pick the colour first)"></label>
+      <p class="sub" style="grid-column:1/-1;color:var(--muted);margin:0">Photos and details are fetched from the shop. Some shops block this; then use Quick add.</p>
+    </div>
+    <div class="row-acts">
+      <button class="btn primary" type="submit" id="add-go">Add</button>
+      <button class="btn" type="button" onclick="this.closest('dialog').close()">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const COLOURS = {
+    "off-white": "#eee8da", "white": "#f6f6f4", "black": "#232326", "light grey": "#c8c9cc", "charcoal": "#46464a",
+    "grey": "#96969a", "navy": "#263252", "light blue": "#aac3dc", "blue": "#46649a", "beige": "#d6c4a8",
+    "brown": "#735037", "olive": "#6e7046", "green": "#3e7d4f", "burgundy": "#6e1e2d", "red": "#b83232",
+    "pink": "#e6a0b4", "yellow": "#e6c34b", "orange": "#d9783c", "purple": "#7a4e9a",
+  };
+  const SLOTS = [["outerwear", "Outerwear"], ["mid", "Knits & layers"], ["base", "Tops & shirts"], ["bottoms", "Bottoms"],
+                 ["shoes", "Shoes"], ["accessories", "Accessories"]];
+  const STATUS_LABEL = { owned: "Owned", laundry: "Laundry", retired: "Retired", wishlist: "Wishlist" };
+  const S = { items: [], inbox: [], categories: [], view: "grid", filter: "available", q: "", analysis: null, open: null, photoIdx: 0 };
+  const $ = (sel, el = document) => el.querySelector(sel);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  async function api(path, opts = {}) {
+    const headers = { "X-Wardrobe": "1", ...(opts.json ? { "Content-Type": "application/json" } : {}) };
+    const res = await fetch(path, { ...opts, headers, body: opts.json ? JSON.stringify(opts.json) : opts.body });
+    if (res.status === 401) { location.reload(); throw new Error("login"); }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    return data;
+  }
+  function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 2200); }
+  const photo = (it, size = 480, n = 0) => it.photos > n ? `/ui/photo/${encodeURIComponent(it.id)}/${n}/${size}?v=${it.photos}` : "";
+  const swatch = (c) => c ? `<span class="swatch" style="background:${COLOURS[c] || "#bbb"}"></span>` : "";
+  const initials = (name) => name.split(/\s+/).slice(0, 2).map((w) => w[0] || "").join("").toUpperCase();
+
+  // ---------------------------------------------------------------- filters
+  const FILTERS = [
+    ["Wardrobe", [["available", "Available now", (i) => i.status === "owned"], ["all", "Everything", (i) => i.status !== "wishlist"],
+                  ["favourite", "★ Favourites", (i) => i.favourite && i.status !== "wishlist"]]],
+    ["Categories", SLOTS.map(([slot, label]) => [`slot:${slot}`, label, (i) => i.slot === slot && i.status !== "wishlist"])],
+    ["Status", [["laundry", "In the laundry", (i) => i.status === "laundry"], ["retired", "Retired", (i) => i.status === "retired"],
+                ["wishlist", "Wishlist", (i) => i.status === "wishlist"]]],
+    ["Needs attention", [["review", "To complete", (i) => needsWork(i) && i.needs_review, true],
+                         ["nophoto", "No photo", (i) => needsWork(i) && !i.photos, true],
+                         ["never", "Never worn", (i) => i.status === "owned" && !i.wears]]],
+  ];
+  // Things you own that the catalogue is incomplete about (wishlist and retired don't count).
+  const needsWork = (i) => (i.status === "owned" || i.status === "laundry") && (i.needs_review || !i.photos);
+  const filterFn = (key) => FILTERS.flatMap(([, f]) => f).find(([k]) => k === key)?.[2] || (() => true);
+
+  function renderNav() {
+    $("#nav").innerHTML = FILTERS.map(([title, rows]) =>
+      `<div class="nav-title">${title}</div><div class="nav">` + rows.map(([key, label, fn, warn]) => {
+        const n = S.items.filter(fn).length;
+        return `<button data-f="${key}" class="${S.filter === key && S.view === "grid" ? "on" : ""} ${warn && n ? "warn" : ""}">${esc(label)}<span class="n">${n}</span></button>`;
+      }).join("") + "</div>").join("");
+  }
+
+  function matchesQuery(it) {
+    if (!S.q) return true;
+    const hay = [it.name, it.brand, it.colour, it.type, it.material, it.category, ...(it.aliases || [])].join(" ").toLowerCase();
+    return S.q.toLowerCase().split(/\s+/).every((w) => hay.includes(w));
+  }
+
+  // ---------------------------------------------------------------- grid view
+  function card(it) {
+    const badges = [];
+    if (it.status !== "owned") badges.push(`<span class="pill ${it.status}">${STATUS_LABEL[it.status]}</span>`);
+    if (it.needs_review) badges.push(`<span class="pill review">To complete</span>`);
+    const ph = it.photos ? `<img loading="lazy" alt="" src="${photo(it, 480)}">`
+                         : `<div><b>${esc(initials(it.name))}</b>No photo yet</div>`;
+    const worn = it.status === "wishlist" ? "wishlist" : it.wears ? `worn ${it.wears}×` : "not worn yet";
+    return `<button class="card ${it.status === "retired" || it.status === "laundry" ? "dim" : ""}" data-id="${esc(it.id)}">
+      <div class="ph ${it.photos ? "" : "empty"}">${ph}</div>
+      <div class="badges">${badges.join("")}</div>
+      <span class="fav ${it.favourite ? "on" : ""}" data-fav="${esc(it.id)}" title="Favourite">★</span>
+      <div class="nm">${esc(it.name)}</div>
+      <div class="mt">${swatch(it.colour)}${esc([it.brand, it.colour].filter(Boolean).join(" · ") || it.category)} · ${worn}</div>
+    </button>`;
+  }
+
+  function renderStats() {
+    const owned = S.items.filter((i) => i.status === "owned");
+    const counts = {};
+    owned.forEach((i) => { if (i.colour) counts[i.colour] = (counts[i.colour] || 0) + 1; });
+    const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+    const pal = Object.entries(counts).sort((a, b) => b[1] - a[1])
+      .map(([c, n]) => `<span title="${esc(c)}: ${n}" style="width:${(n / total) * 100}%;background:${COLOURS[c] || "#bbb"}"></span>`).join("");
+    const attention = S.items.filter(needsWork).length;
+    return `<div class="stats">
+      <div class="stat"><div class="v">${owned.length}</div><div class="l">available now</div><div class="palette">${pal}</div></div>
+      <div class="stat"><div class="v">${S.items.filter((i) => i.status === "laundry").length}</div><div class="l">in the laundry</div></div>
+      <div class="stat"><div class="v">${S.items.filter((i) => i.status === "wishlist").length}</div><div class="l">on the wishlist</div></div>
+      <div class="stat"><div class="v" style="color:${attention ? "var(--amber)" : "inherit"}">${attention}</div><div class="l">to complete (details or photo)</div></div>
+    </div>`;
+  }
+
+  function renderGrid() {
+    const shown = S.items.filter(filterFn(S.filter)).filter(matchesQuery);
+    let html = renderStats();
+    if (!shown.length) {
+      html += `<div class="empty-state">Nothing here${S.q ? ` for “${esc(S.q)}”` : ""}.<br><br><button class="btn" id="empty-add">+ Add an item</button></div>`;
+    } else if (S.filter.startsWith("slot:") || S.filter === "wishlist" || S.filter === "review" || S.filter === "nophoto") {
+      html += `<div class="grid">${shown.map(card).join("")}</div>`;
+    } else {
+      for (const [slot, label] of SLOTS) {
+        const group = shown.filter((i) => i.slot === slot);
+        if (!group.length) continue;
+        html += `<div class="section-h"><h2>${label}</h2><span class="n">${group.length}</span></div><div class="grid">${group.map(card).join("")}</div>`;
+      }
+    }
+    $("#view").innerHTML = html;
+  }
+
+  // ---------------------------------------------------------------- insights
+  function gapList(a) {
+    const c = a.coverage, per = a.per_slot || {};
+    const smart = c.smart_items_formality_4plus || {};
+    return [
+      [c.rain_proof_outerwear.length > 0, "Rain-proof outerwear", "Something that handles a wet day.", "a water-repellent jacket or coat", c.rain_proof_outerwear],
+      [c.warm_outerwear_4plus.length > 0, "Warm winter layer", "A coat or puffer for below zero.", "a warm winter coat or puffer", c.warm_outerwear_4plus],
+      [c.boots.length > 0, "Boots", "For slush, rain and cold.", "a pair of boots", c.boots],
+      [(per.base || 0) >= 4, "Everyday tops", `${per.base || 0} base tops; 4+ makes rotation easy.`, "a couple of everyday tops (tees, oxford shirts)", []],
+      [(per.mid || 0) >= 2, "Knits & layers", `${per.mid || 0} mid layers.`, "a versatile knit", []],
+      [(per.bottoms || 0) >= 3, "Bottoms", `${per.bottoms || 0} pairs.`, "another pair of trousers", []],
+      [(smart.base || []).length + (smart.mid || []).length > 0, "A smart top", "For dinners, meetings, interviews.", "a smart shirt or fine knit", []],
+      [(smart.shoes || []).length > 0, "Smart shoes", "Loafers or derbies.", "a pair of smart shoes (loafers or derbies)", []],
+      [c.warm_weather_bottoms.length > 0, "Warm-weather bottoms", "Shorts or linen for summer and trips.", "shorts or linen trousers", c.warm_weather_bottoms],
+    ];
+  }
+
+  function renderInsights() {
+    const a = S.analysis;
+    if (!a) { $("#view").innerHTML = `<div class="empty-state">Loading insights…</div>`; loadAnalysis(); return; }
+    const byId = Object.fromEntries(S.items.map((i) => [i.id, i]));
+    const minis = (ids) => `<div class="mini">${ids.map((id) => byId[id]).filter(Boolean).map((it) =>
+      `<button data-id="${esc(it.id)}"><div class="ph">${it.photos ? `<img src="${photo(it, 240)}">` : esc(initials(it.name))}</div>${esc(it.name.slice(0, 22))}</button>`).join("")}</div>`;
+    const gaps = gapList(a).map(([ok, title, why, ask, ids]) => `
+      <div class="gap ${ok ? "ok" : "miss"}"><div class="ic">${ok ? "✓" : "!"}</div><div style="flex:1">
+        <div class="t">${title}</div><div class="d">${ok ? `${ids.length ? ids.length + " in your wardrobe" : why}` : why}</div>
+        ${ok ? "" : `<div class="acts"><button class="btn small" data-wish="${esc(ask)}">+ Wishlist</button>
+          <button class="btn small" data-copy="Help me find ${esc(ask)} that fits my wardrobe. Check what I own first.">Copy request for my assistant</button></div>`}
+      </div></div>`).join("");
+    const maxSlot = Math.max(1, ...Object.values(a.per_slot || {}));
+    const bars = SLOTS.map(([slot, label]) => {
+      const n = (a.per_slot || {})[slot] || 0;
+      return `<div class="bar"><span>${label}</span><div class="track"><div class="fill" style="width:${(n / maxSlot) * 100}%"></div></div><span>${n}</span></div>`;
+    }).join("");
+    const colourRows = Object.entries(a.colours || {}).map(([c, n]) =>
+      `<div class="bar"><span>${swatch(c)}${esc(c)}</span><div class="track"><div class="fill" style="width:${(n / Math.max(...Object.values(a.colours))) * 100}%;background:${COLOURS[c] || "#999"}"></div></div><span>${n}</span></div>`).join("");
+    const todo = S.items.filter(needsWork);
+    const brief = todo.length ? "Please help me complete these wardrobe items (use save_item; ask me for photos or links where needed):\n" +
+      todo.map((i) => `- ${i.id}: ${i.name}${i.brand ? " (" + i.brand + ")" : ""} — missing: ${[!i.photos && "photo", !i.colour && "colour", i.needs_review && "check details"].filter(Boolean).join(", ")}`).join("\n") : "";
+    const wl = a.wear_log || {};
+    $("#view").innerHTML = `<div class="ins">
+      <div class="panel" style="grid-row:span 2"><h3>What's missing</h3><p class="sub">A wardrobe that covers your weather and occasions.</p>${gaps}</div>
+      <div class="panel"><h3>By category</h3><p class="sub">${a.items_total} items you own and can wear.</p>${bars}</div>
+      <div class="panel"><h3>Colours</h3><p class="sub">Your palette.</p>${colourRows || '<p class="sub">No colours yet.</p>'}</div>
+      <div class="panel"><h3>Catalogue to-do</h3><p class="sub">${todo.length ? `${todo.length} item(s) need a photo or details. Copy this and paste it to ChatGPT/Claude.` : "Everything has a photo and details. 👌"}</p>
+        ${todo.length ? `<pre class="brief">${esc(brief)}</pre><button class="btn small" data-copy="${esc(brief)}">Copy brief</button>` : ""}</div>
+      ${a.near_duplicates.length ? `<div class="panel"><h3>Look-alikes</h3><p class="sub">Same type and colour: skip these when shopping.</p>${a.near_duplicates.map((g) => `<div class="group">${minis(g)}</div>`).join("")}</div>` : ""}
+      ${a.hard_to_combine.length ? `<div class="panel"><h3>Hard to combine</h3><p class="sub">Few things in your wardrobe go with these.</p>${minis(a.hard_to_combine.map((x) => x.id))}</div>` : ""}
+      ${Array.isArray(wl.never_worn) && wl.never_worn.length ? `<div class="panel"><h3>Never worn</h3><p class="sub">Since logging started.</p>${minis(wl.never_worn)}</div>` : ""}
+      ${(wl.not_worn_60_days || []).length ? `<div class="panel"><h3>Not worn in 60 days</h3><p class="sub">Keep, sell or retire?</p>${minis(wl.not_worn_60_days)}</div>` : ""}
+      ${(wl.most_worn || []).length ? `<div class="panel"><h3>Most worn</h3><p class="sub">Your workhorses.</p>${minis(wl.most_worn.map((x) => x.id))}</div>` : ""}
+    </div>`;
+  }
+
+  async function loadAnalysis() { S.analysis = await api("/ui/api/analysis"); if (S.view === "insights") renderInsights(); }
+
+  // ---------------------------------------------------------------- inbox
+  function renderInbox() {
+    if (!S.inbox.length) {
+      $("#view").innerHTML = `<div class="empty-state">The inbox is empty.<br>Photos you share from your iPhone (“Add photo to wardrobe”) land here.</div>`;
+      return;
+    }
+    const cats = S.categories.map((c) => `<option>${c}</option>`).join("");
+    $("#view").innerHTML = `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">` + S.inbox.map((name) => `
+      <form class="panel" data-inbox="${esc(name)}" style="padding:12px">
+        <div class="card"><div class="ph"><img src="/ui/inbox/${encodeURIComponent(name)}/480"></div></div>
+        <div class="form" style="margin-top:10px;grid-template-columns:1fr">
+          <label>Name<input name="name" required placeholder="What is it?"></label>
+          <label>Category<select name="category">${cats}</select></label>
+          <button class="btn primary small" type="submit">Create item</button>
+        </div></form>`).join("") + `</div>`;
+  }
+
+  // ---------------------------------------------------------------- drawer
+  function openItem(id) {
+    S.open = id; S.photoIdx = 0;
+    renderDrawer();
+    $("#drawer").classList.add("on"); $("#scrim").classList.add("on");
+  }
+  function closeDrawer() { S.open = null; $("#drawer").classList.remove("on"); $("#scrim").classList.remove("on"); }
+
+  function renderDrawer() {
+    const it = S.items.find((i) => i.id === S.open);
+    if (!it) return closeDrawer();
+    const cats = S.categories.map((c) => `<option ${c === it.category ? "selected" : ""}>${c}</option>`).join("");
+    const colours = ["", ...Object.keys(COLOURS)];
+    if (it.colour && !COLOURS[it.colour]) colours.push(it.colour);
+    const thumbs = it.photos > 1 ? `<div class="thumbs">${Array.from({ length: it.photos }, (_, n) =>
+      `<button data-n="${n}" class="${n === S.photoIdx ? "on" : ""}"><img src="${photo(it, 240, n)}"></button>`).join("")}</div>` : "";
+    const guessed = (it.guessed || []).filter((g) => ["category", "warmth", "formality", "type", "colour", "rain_ok"].includes(g));
+    $("#drawer").innerHTML = `
+      <div class="hero">${it.photos ? `<img src="${photo(it, 960, S.photoIdx)}">` : `<div style="text-align:center;color:#8a8076"><b style="font-size:48px;color:#b9afa3">${esc(initials(it.name))}</b><br>No photo yet</div>`}
+        <button class="close" data-close>✕</button></div>
+      ${thumbs}
+      <div class="dbody">
+        <h2>${esc(it.name)}</h2>
+        <div class="meta">${swatch(it.colour)}${esc([it.brand, it.colour, it.type].filter(Boolean).join(" · "))}${it.source_url ? ` · <a href="${esc(it.source_url)}" target="_blank" rel="noopener">shop page ↗</a>` : ""}</div>
+        <div class="seg">${["owned", "laundry", "retired", "wishlist"].map((s) => `<button data-status="${s}" class="${it.status === s ? "on" : ""}">${STATUS_LABEL[s]}</button>`).join("")}</div>
+        <div class="facts">
+          <div class="fact"><div class="v">${it.wears}</div><div class="l">times worn</div></div>
+          <div class="fact"><div class="v">${it.last_worn ? esc(it.last_worn.slice(5)) : "—"}</div><div class="l">last worn</div></div>
+          <div class="fact"><div class="v">${it.price ? esc(Math.round(it.price)) + " " + esc(it.currency || "") : "—"}</div><div class="l">${it.price && it.wears ? Math.round(it.price / it.wears) + " per wear" : "price"}</div></div>
+        </div>
+        ${it.needs_review || guessed.length ? `<div class="hint">${it.needs_review ? "Added automatically or quickly: check the details and save. " : ""}${guessed.length ? `Guessed from the name: <b>${guessed.join(", ")}</b>.` : ""}</div>` : ""}
+        <form class="form" id="edit">
+          <label class="full">Name<input name="name" value="${esc(it.name)}" required></label>
+          <label>Brand<input name="brand" value="${esc(it.brand || "")}"></label>
+          <label>Category<select name="category">${cats}</select></label>
+          <label>Type<input name="type" value="${esc(it.type || "")}" placeholder="shirt, knit, jeans…"></label>
+          <label>Colour<select name="colour">${colours.map((c) => `<option value="${esc(c)}" ${c === (it.colour || "") ? "selected" : ""}>${c || "—"}</option>`).join("")}</select></label>
+          <label>Material<input name="material" value="${esc(it.material || "")}"></label>
+          <label>Size<input name="size" value="${esc(it.size || "")}"></label>
+          <label>Warmth <span class="range-v" data-for="warmth">${it.warmth ?? "–"}</span><input type="range" name="warmth" min="0" max="5" value="${it.warmth ?? 2}"></label>
+          <label>Formality <span class="range-v" data-for="formality">${it.formality ?? "–"}</span><input type="range" name="formality" min="1" max="5" value="${it.formality ?? 2}"></label>
+          <label class="full">What you call it<input name="aliases" value="${esc((it.aliases || []).join(", "))}" placeholder="beige cords, manchester trousers"></label>
+          <label class="full">Notes<textarea name="notes" rows="2">${esc(it.notes || "")}</textarea></label>
+          <label class="check"><input type="checkbox" name="rain_ok" ${it.rain_ok ? "checked" : ""}> Handles rain</label>
+          <label class="check"><input type="checkbox" name="favourite" ${it.favourite ? "checked" : ""}> ★ Favourite</label>
+        </form>
+        <div class="row-acts">
+          <button class="btn primary" data-save>Save${it.needs_review ? " & mark complete" : ""}</button>
+          <label class="btn">Add photo<input type="file" accept="image/*" multiple hidden data-upload></label>
+        </div>
+      </div>`;
+  }
+
+  async function saveDrawer() {
+    const f = $("#edit"); const fd = new FormData(f);
+    const body = Object.fromEntries(["name", "brand", "category", "type", "colour", "material", "size", "notes", "aliases"].map((k) => [k, fd.get(k)]));
+    body.warmth = Number(fd.get("warmth")); body.formality = Number(fd.get("formality"));
+    body.rain_ok = fd.get("rain_ok") === "on"; body.favourite = fd.get("favourite") === "on"; body.needs_review = false;
+    await update(S.open, body); toast("Saved");
+  }
+  async function update(id, body) {
+    const updated = await api(`/ui/api/items/${encodeURIComponent(id)}`, { method: "PATCH", json: body });
+    S.items = S.items.map((i) => (i.id === id ? updated : i)); S.analysis = null;
+    render(); if (S.open === id) renderDrawer();
+  }
+
+  // ---------------------------------------------------------------- add dialog
+  let addMode = "quick";
+  function openAdd(prefill = {}) {
+    const f = $("#add-form"); f.reset();
+    f.category.innerHTML = S.categories.map((c) => `<option>${c}</option>`).join("");
+    Object.entries(prefill).forEach(([k, v]) => { if (f[k]) f[k].value = v; });
+    setAddMode("quick"); $("#add-dlg").showModal(); f.name.focus();
+  }
+  function setAddMode(mode) {
+    addMode = mode;
+    document.querySelectorAll("#add-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.mode === mode));
+    $("#add-quick").hidden = mode !== "quick"; $("#add-link").hidden = mode !== "link";
+    $("#add-form").name.required = mode === "quick";
+  }
+  async function submitAdd(e) {
+    e.preventDefault();
+    const f = $("#add-form"); const go = $("#add-go"); go.disabled = true;
+    try {
+      let item;
+      if (addMode === "link") {
+        go.textContent = "Fetching…";
+        const r = await api("/ui/api/import", { method: "POST", json: { url: f.url.value.trim() } });
+        item = r.item; toast(r.existing ? "Already in your wardrobe" : r.warning ? `Added (${r.warning})` : "Imported");
+      } else {
+        item = await api("/ui/api/items", { method: "POST", json: {
+          name: f.name.value, category: f.category.value, brand: f.brand.value, colour: f.colour.value,
+          status: f.status.value, favourite: f.favourite.checked } });
+        if (f.photo.files.length) item = await uploadPhotos(item.id, f.photo.files);
+        toast(f.status.value === "wishlist" ? "Added to wishlist" : "Added");
+      }
+      $("#add-dlg").close(); await load(); openItem(item.id);
+    } catch (err) { toast(err.message); }
+    finally { go.disabled = false; go.textContent = "Add"; }
+  }
+  async function uploadPhotos(id, fileList) {
+    const body = new FormData(); [...fileList].forEach((file, n) => body.append(`photo${n}`, file));
+    return api(`/ui/api/items/${encodeURIComponent(id)}/photos`, { method: "POST", body });
+  }
+
+  // ---------------------------------------------------------------- wiring
+  function render() {
+    renderNav();
+    document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.view === S.view));
+    const inboxTab = $('#tabs [data-view="inbox"]'); inboxTab.textContent = S.inbox.length ? `Inbox (${S.inbox.length})` : "Inbox";
+    if (S.view === "grid") renderGrid(); else if (S.view === "insights") renderInsights(); else renderInbox();
+  }
+  async function load() {
+    const data = await api("/ui/api/items");
+    Object.assign(S, { items: data.items, inbox: data.inbox, categories: data.categories, analysis: null });
+    render();
+  }
+
+  document.addEventListener("click", async (e) => {
+    const t = e.target.closest("button, [data-fav], label.btn");
+    if (!t) return;
+    if (t.dataset.fav) { e.stopPropagation(); const it = S.items.find((i) => i.id === t.dataset.fav); await update(it.id, { favourite: !it.favourite }); return toast(it.favourite ? "Removed from favourites" : "★ Favourite"); }
+    if (t.dataset.f) { S.filter = t.dataset.f; S.view = "grid"; return render(); }
+    if (t.dataset.view) { S.view = t.dataset.view; return render(); }
+    if (t.dataset.id) return openItem(t.dataset.id);
+    if (t.dataset.close !== undefined) return closeDrawer();
+    if (t.dataset.status) { await update(S.open, { status: t.dataset.status }); return toast(STATUS_LABEL[t.dataset.status]); }
+    if (t.dataset.n) { S.photoIdx = Number(t.dataset.n); return renderDrawer(); }
+    if (t.dataset.save !== undefined) return saveDrawer().catch((err) => toast(err.message));
+    if (t.dataset.copy) { await navigator.clipboard.writeText(t.dataset.copy).catch(() => {}); return toast("Copied. Paste it to your assistant"); }
+    if (t.dataset.wish) return openAdd({ name: t.dataset.wish.replace(/^an? /, "").replace(/^\w/, (c) => c.toUpperCase()), status: "wishlist" });
+    if (t.id === "add-btn" || t.id === "empty-add") return openAdd();
+    if (t.dataset.mode) return setAddMode(t.dataset.mode);
+  });
+  document.addEventListener("change", async (e) => {
+    if (e.target.matches("[data-upload]") && e.target.files.length) {
+      try { const updated = await uploadPhotos(S.open, e.target.files); S.items = S.items.map((i) => (i.id === updated.id ? updated : i)); S.photoIdx = updated.photos - 1; render(); renderDrawer(); toast("Photo added"); }
+      catch (err) { toast(err.message); }
+    }
+  });
+  document.addEventListener("input", (e) => {
+    if (e.target.type === "range") { const v = document.querySelector(`.range-v[data-for="${e.target.name}"]`); if (v) v.textContent = e.target.value; }
+  });
+  document.addEventListener("submit", async (e) => {
+    const form = e.target;
+    if (form.id === "add-form") return submitAdd(e);
+    if (form.dataset.inbox) {
+      e.preventDefault();
+      try {
+        const item = await api("/ui/api/items", { method: "POST", json: { name: form.name.value, category: form.category.value, from_inbox: [form.dataset.inbox] } });
+        await load(); toast("Item created"); openItem(item.id);
+      } catch (err) { toast(err.message); }
+    }
+  });
+  $("#q").addEventListener("input", (e) => { S.q = e.target.value.trim(); if (S.view !== "grid") S.view = "grid"; render(); });
+  $("#scrim").addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeDrawer();
+    if (e.key === "/" && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") { e.preventDefault(); $("#q").focus(); }
+  });
+
+  load().catch((err) => { $("#view").innerHTML = `<div class="empty-state">Couldn't load the wardrobe: ${esc(err.message)}</div>`; });
+})();
+</script>
+</body>
+</html>

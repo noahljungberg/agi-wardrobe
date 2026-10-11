@@ -41,7 +41,8 @@ the model sees the candidates' photos and decides.
     −0.3 for suede;
   - snow: boots +0.3;
   - formality: −0.12 per step off the occasion;
-  - recently worn: penalties in `RECENCY_PENALTY` (base layers are penalised most).
+  - recently worn: penalties in `RECENCY_PENALTY` (base layers are penalised most);
+  - favourites: +0.05 (a nudge; weather and recency still decide).
 - Items without warmth use `DEFAULT_WARMTH[slot]`.
 - At most 6 per slot and 4 accessories; fewer when a slot isn't needed.
 

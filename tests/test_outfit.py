@@ -44,3 +44,14 @@ def test_occasion_and_bias():
     assert temperature_bias({"runs": "cold"}) == -2.5
     assert temperature_bias({"temperature_bias": 1}) == 1.0
     assert temperature_bias({}) == 0.0
+
+
+def test_favourite_is_a_small_nudge(demo_dir):
+    cat = Catalog(demo_dir)
+    weather = _weather(14, 18)
+    scores = lambda c: {i.id: s for i, s in c.by_slot["base"]}  # noqa: E731
+    before = pick_candidates(cat.items(), weather, None, [], {}, date.today())
+    item_id = before.by_slot["base"][1][0].id
+    cat.save_item(item_id, {"favourite": True})
+    after = pick_candidates(cat.items(), weather, None, [], {}, date.today())
+    assert abs(scores(after)[item_id] - scores(before)[item_id] - 0.05) < 1e-6

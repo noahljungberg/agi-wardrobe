@@ -19,8 +19,11 @@ remove an entry in the change that fixes it.
 | 10 | http-api | A urlencoded `/location` body with raw (non-percent-encoded) UTF-8 is decoded as Latin-1 | Shortcuts send JSON, so this doesn't affect them; only hand-made curl calls |
 | 11 | render | Own photos (inbox) have messy backgrounds next to clean packshots | Optional background removal (e.g. `rembg`) when saving from the inbox |
 | 12 | auth | CIMD documents are only accepted from a fixed list of AI-client domains | If a client publishes its metadata elsewhere, login fails with "client not found"; extend `CIMD_TRUSTED_DOMAINS` |
+| 13 | web ui | No paging: the page loads every item at once | Fine for hundreds of items with lazy-loaded photos; add paging if it gets slow |
 
 ## Ideas (not planned)
+
+- Pair items with an image model (which pieces go together) and show pairings in the web UI.
 
 - Trip packing list: "SF for 5 days" → forecast for each day + wardrobe.
 - Rating outfits ("loved it") to tune scoring per user.

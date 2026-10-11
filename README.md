@@ -49,6 +49,15 @@ Shortcuts), see **[docs/guides/setup.md](docs/guides/setup.md)**.
 | `remember` / `forget` | Lasting preferences ("never black with brown") |
 | `set_location` | "I'm in San Francisco" |
 
+## On the computer
+
+Browse the whole wardrobe at `https://<machine>.<tailnet>.ts.net:8443/ui` (tailnet only):
+
+- photos;
+- what's available, in the laundry, retired or wishlisted;
+- what's missing;
+- quick add and edits.
+
 ## Commands
 
 ```sh
